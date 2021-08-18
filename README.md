@@ -9,7 +9,7 @@ This is a Work In Progress:
 
 * BPF programs are being updated
 
-* Tt will be updated soon to use [Cilium ebpf library](https://github.com/cilium/ebpf/) and turned into a small daemon. 
+* Programs will be updated soon to use [Cilium ebpf library](https://github.com/cilium/ebpf/) and turned into a small daemon for embedded Linux.
 
 
 ## Design
