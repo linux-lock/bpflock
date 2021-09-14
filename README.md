@@ -3,6 +3,7 @@
 bpflock - eBPF driven security for locking and auditing Linux machines.
 
 
+
 ## Work In Progress
 
 This is a Work In Progress:
@@ -16,14 +17,32 @@ This is a Work In Progress:
 
 bpflock is designed to work along side container managers to protect Linux machines using a system wide approach.
 
-bpflock will sandbox all containers and protect the Linux machine, only services like container managers or systemd manager will be able to access all Linux kernel features, all other containers that run on their own namespaces will be restricted or completely blocked.
+bpflock will sandbox all processes and containers to protect the machine, only services like container managers or systemd manager that
+run in the initial namespaces will be able to access all Linux kernel features, other containers that run on their own namespaces will be
+restricted or completely blocked.
 
 bpflock uses LSM bpf to implement its security features.
 
 ## 2. Protections
 
+bpflock implements protection using multiple small bpf programs each separated by functionality. Each program can be launched independently without interfering with
+the rest.
 
-### 2.2 kernel lock down
+The semantic of all programs is:
+
+* Permission: each program supports three different permission model.
+  - Allow|none: access is allowed.
+  - Deny: access is denied for all processes.
+  - Restrict: access is allowed only from processes that are in the initial mnt and other namespaces. This allows systemd and container managers to properly access all functionality.
+
+
+* Allowed or blocked operations/commands:
+  when a program runs under the allow or restrict permission model, it can defines a list of allowed or blocked commands.
+  - Allow: comma-separated list of allowed commands.
+  - Block: comma-separated list of blocked commands.
+
+
+### 2.2 kernel Image lock down
 
 kernelmem implements access restriction to prevent both direct and indirect access to a running kernel image.
 
@@ -85,7 +104,7 @@ Examples:
 To disable this program delete the pinned file `/sys/fs/bpf/bpflock/kernelmem`. Re-executing will enable it again.
 
 
-### 2.3 bpf protection
+### 2.3 BPF protection
 
 disablebpf implements access restrictions on bpf syscall.
 
@@ -93,16 +112,16 @@ It supports following options:
 
  * Permission:
     - allow|none: bpf is allowed.
-    - deny: bpf syscall and all its commands are denied for all processes and containers on the system.
+    - deny: bpf syscall and all its commands are denied for all processes on the system.
     - restrict: bpf is allowed only from processes that are in the initial mnt namespace. This allows systemd or container managers to properly use bpf. Default value.
 
- * List of commands to allow in case permission is restrict:
-    - map_create: allow creation of bpf maps.
-    - btf_load: allow loading BPF Type Format (BTF) metadata into the kernel.
-    - prog_load: allow loading bpf programs.
+ * List of commands to block in case permission is restrict or allow:
+    - map_create: block creation of bpf maps.
+    - btf_load: block loading BPF Type Format (BTF) metadata into the kernel.
+    - prog_load: block loading bpf programs.
     - All other commands are allowed by default.
     
-    If allowed command is not set, then all bpf commands are allowed. If one of the three is set, then the two others are blocked.
+    If list of commands to block is not set, then all bpf commands are allowed.
 
 
 Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. For containers workload to disable this program, delete the pinned file `/sys/fs/bpf/bpflock/disable-bpf`. Re-executing will enable it again.
