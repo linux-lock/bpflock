@@ -18,10 +18,10 @@ This is a Work In Progress:
 bpflock is designed to work along side container managers to protect Linux machines using a system wide approach.
 
 bpflock will sandbox all processes and containers to protect the machine, only services like container managers or systemd manager that
-run in the initial namespaces will be able to access all Linux kernel features, other containers that run on their own namespaces will be
+run in the initial mnt namespaces will be able to access all Linux kernel features, other containers that run on their own namespaces will be
 restricted or completely blocked.
 
-bpflock uses LSM bpf to implement its security features.
+bpflock uses [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html) to implement its security features.
 
 ## 2. Protections
 
