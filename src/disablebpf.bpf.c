@@ -4,23 +4,7 @@
  * Copyright (C) 2021 Djalal Harouni
  */
 
-/*
- * Implements access restrictions on bpf syscall, it supports following values:
- *   Per running context:
- *	- allow: bpf is allowed.
- *	- restrict: bpf is allowed only from processes that are in the initial mount
- *           namespace.
- *	- deny: deny bpf syscall and all its commands for all processes.
- *           Make sure to execute this program last during boot and after
- *           all necessary bpf programs have been loaded. For containers workload
- *           delete the pinned file and load it again after container initialization.
- *
- *   If bpf is allowed, then tasks can be restricted to the following commands: 
- *   - map_create: allow creation of bpf maps.
- *   - btf_load: allow loading BPF Type Format (BTF) metadata into the kernel.
- *   - prog_load: allow loading bpf programs.
- *   All other commands are allowed.
- *
+ /*
  * To disable this program, delete the pinned file "/sys/fs/bpf/bpflock/disable-bpf",
  * re-executing will enable it again.
  */
@@ -33,7 +17,7 @@
 
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 32);
+        __uint(max_entries, 16);
         __type(key, uint32_t);
         __type(value, uint32_t);
 } disablebpf_map SEC(".maps");
@@ -51,7 +35,7 @@ SEC("lsm/bpf")
 int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
              unsigned int size, int ret)
 {
-        uint32_t *val, allowed = 0, op_allowed = 0;
+        uint32_t *val, blocked = 0, op_blocked = 0;
         uint32_t k = BPFLOCK_BPF_PERM;
 
         if (ret != 0)
@@ -62,41 +46,41 @@ int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
                 if (!val)
                         return 0;
 
-                allowed = *val;
-                if (allowed == BPFLOCK_BPF_DENY)
+                blocked = *val;
+                if (blocked == BPFLOCK_BPF_DENY)
                         return -EACCES;
 
+                /* Filter allow too
                 if (allowed == BPFLOCK_BPF_ALLOW)
                         return 0;
+                */
 
                 /* Here we just force restrict */
                 k = BPFLOCK_BPF_OP;
-                /* Check if a list of allowed operations was set, if not then allow BPF commands */
+                /* Check if a list of blocked operations was set, if not then allow BPF commands */
                 val = bpf_map_lookup_elem(&disablebpf_map, &k);
                 if (!val)
                         return 0;
 
-                allowed = *val;
+                blocked = *val;
 
                 switch (cmd) {
                 case BPF_PROG_LOAD:
-                        op_allowed = allowed & BPFLOCK_PROG_LOAD;
+                        op_blocked = blocked & BPFLOCK_PROG_LOAD;
                         break;
                 case BPF_MAP_CREATE:
-                        op_allowed = allowed & BPFLOCK_MAP_CREATE;
+                        op_blocked = blocked & BPFLOCK_MAP_CREATE;
                         break;
                 case BPF_BTF_LOAD:
-                        op_allowed = allowed & BPFLOCK_BTF_LOAD;
+                        op_blocked = blocked & BPFLOCK_BTF_LOAD;
                         break;
                 default:
-                        op_allowed = 1;
+                        op_blocked = 0;
                         break;
                 }
 
-                if (allowed)
-                        return 0;
-
-                ret = -EACCES;
+                if (op_blocked)
+                        return -EACCES;
 
         } else if (cmd == BPF_OBJ_PIN) {
                 pinned_bpf = 1;
