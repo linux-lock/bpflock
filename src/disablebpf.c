@@ -6,20 +6,8 @@
 
 /*
  * Implements access restrictions on bpf syscall, it supports following values:
- *   Per running context:
- *	- allow: bpf is allowed.
- *	- restrict: bpf is allowed only from processes that are in the initial mount
- *           namespace.
- *	- deny: deny bpf syscall and all its commands for all processes.
- *           Make sure to execute this program last during boot and after
- *           all necessary bpf programs have been loaded. For containers workload
- *           delete the pinned file and load it again after container initialization.
  *
- *   If bpf is allowed, then tasks can be restricted to the following commands: 
- *   - map_create: allow creation of bpf maps.
- *   - btf_load: allow loading BPF Type Format (BTF) metadata into the kernel.
- *   - prog_load: allow loading bpf programs.
- *   All other commands are allowed.
+ * Documentation: https://github.com/linux-lock/bpflock/blob/main/README.md
  *
  * To disable this program, delete the pinned file "/sys/fs/bpf/bpflock/disable-bpf",
  * re-executing will enable it again.
@@ -37,10 +25,10 @@
 #include "disablebpf.skel.h"
 
 static struct options {
-        char *perm;
         int perm_int;
-        char *allow_op;
-        int allow_op_int;
+        int block_op_int;
+        char *perm;
+        char *block_op;
 } opt = {};
 
 const char *argp_program_version = "disablebpf 0.1";
@@ -52,19 +40,19 @@ const char argp_program_doc[] =
 "USAGE: disablebpf [--help] [-p PERM] [-c CMD]\n"
 "\n"
 "EXAMPLES:\n"
-"    # Restrict BPF system call to tasks in init mnt namespace.\n"
-"    disablebpf\n"
-"    disablebpf -p restrict\n"
-"\n    # BPF is allowed.\n"
-"    disablebpf -p allow\n"
-"\n    # Allow BPF load program command if task is in init mnt namespace.\n"
-"    disablebpf -p restrict -c prog_load\n"
-"\n    # Deny BPF system call for all.\n"
-"    disablebpf -p deny\n";
+"  # BPF is allowed.\n"
+"  disablebpf -p allow\n\n"
+"  # Restrict BPF system call to tasks in initial mnt namespace.\n"
+"  disablebpf\n"
+"  disablebpf -p restrict\n"
+"\n  # Allow BPF load program command if task is in init mnt namespace.\n"
+"  disablebpf -p restrict -b prog_load\n"
+"\n  # Deny BPF system call for all.\n"
+"  disablebpf -p deny\n";
 
 static const struct argp_option opts[] = {
-        { "permission", 'p', "PERM", 0, "Permission to apply, one of the following values: allow, restrict or deny. Default value is: restrict." },
-        { "command", 'c', "CMD", 0, "Allowed BPF commands, possible values: 'map_create, prog_load, btf_load' " },
+        { "permission", 'p', "PERM", 0, "Permission to apply, one of the following: allow, restrict or deny. Default value is: restrict." },
+        { "block", 'b', "CMD", 0, "Block BPF commands, possible values: 'map_create, prog_load, btf_load' " },
         { NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
         {},
 };
@@ -75,19 +63,19 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
         case 'h':
                 argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
                 break;
-        case 'c':
+        case 'b':
                 if (strlen(arg) + 1 > 64) {
                         fprintf(stderr, "invaild -a|--allow argument: too long\n");
                         argp_usage(state);
                 }
-                opt.allow_op = arg;
+                opt.block_op = strndup(arg, strlen(arg));
                 break;
         case 'p':
                 if (strlen(arg) + 1 > 64) {
                         fprintf(stderr, "invaild -p|--permission argument: too long\n");
                         argp_usage(state);
                 }
-                opt.perm = arg;
+                opt.perm = strndup(arg, strlen(arg));
                 break;
         default:
                 return ARGP_ERR_UNKNOWN;
@@ -97,43 +85,45 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 }
 
 /* Setup bpf map options */
-static int setup_bpf_opt_map(int fd, struct options *opt)
+static int setup_bpf_opt_map(int fd)
 {
         uint32_t perm_k = BPFLOCK_BPF_PERM;
         uint32_t op_k = BPFLOCK_BPF_OP;
 
-        opt->perm_int = 0;
-        opt->allow_op_int = 0;
+        opt.perm_int = 0;
+        opt.block_op_int = 0;
 
         if (fd <= 0)
                 return -EINVAL;
 
-        if (!opt->perm)
-                opt->perm_int = BPFLOCK_BPF_RESTRICT;
-        else {
-                if (strneq(opt->perm, "deny", 4) == 0)
-                        opt->perm_int = BPFLOCK_BPF_DENY;
-                else if (strneq(opt->perm, "restrict", 8) == 0) {
-                        opt->perm_int = BPFLOCK_BPF_RESTRICT;
-                        if (strstr(opt->allow_op, "map_create") != NULL)
-                                opt->allow_op_int &= BPFLOCK_MAP_CREATE;
-                        if (strstr(opt->allow_op, "prog_load") != NULL)
-                                opt->allow_op_int &= BPFLOCK_PROG_LOAD;
-                        if (strstr(opt->allow_op, "btf_load") != NULL)
-                                opt->allow_op_int &= BPFLOCK_BTF_LOAD;
-                } else if (strneq(opt->perm, "allow", 5) == 0 ||
-                           strneq(opt->perm, "none", 4) == 0)
-                        opt->perm_int = BPFLOCK_BPF_ALLOW;
+        if (!opt.perm) {
+                opt.perm_int = BPFLOCK_BPF_RESTRICT;
+        } else {
+                if (strncmp(opt.perm, "deny", 4) == 0) {
+                        opt.perm_int = BPFLOCK_BPF_DENY;
+                } else if (strncmp(opt.perm, "restrict", 8) == 0) {
+                        opt.perm_int = BPFLOCK_BPF_RESTRICT;
+                        printf("op: %s\n", opt.block_op);
+                        if (strstr(opt.block_op, "map_create") != NULL)
+                                opt.block_op_int |= BPFLOCK_MAP_CREATE;
+                        if (strstr(opt.block_op, "prog_load") != NULL)
+                                opt.block_op_int |= BPFLOCK_PROG_LOAD;
+                        if (strstr(opt.block_op, "btf_load") != NULL)
+                                opt.block_op_int |= BPFLOCK_BTF_LOAD;
+                } else if (strncmp(opt.perm, "allow", 5) == 0 ||
+                           strncmp(opt.perm, "none", 4) == 0) {
+                        opt.perm_int = BPFLOCK_BPF_ALLOW;
+                }
         }
 
-        bpf_map_update_elem(fd, &perm_k, &opt->perm_int, BPF_ANY);
-        if (opt->allow_op_int > 0)
-                bpf_map_update_elem(fd, &op_k, &opt->allow_op_int, BPF_ANY);
+        bpf_map_update_elem(fd, &perm_k, &opt.perm_int, BPF_ANY);
+        if (opt.block_op_int > 0)
+                bpf_map_update_elem(fd, &op_k, &opt.block_op_int, BPF_ANY);
 
         return 0;
 }
 
-static int setup_bpf_env_map(int fd, struct options *opt)
+static int setup_bpf_env_map(int fd)
 {
         char *value;
         int ret;
@@ -210,14 +200,14 @@ int main(int argc, char **argv)
                 goto cleanup;
         }
 
-        err = setup_bpf_opt_map(disablebpf_map_fd, &opt);
+        err = setup_bpf_opt_map(disablebpf_map_fd);
         if (err < 0) {
                 fprintf(stderr, "%s: error: failed to setup bpf opt map: %d\n",
                         LOG_BPFLOCK, err);
                 goto cleanup;
         }
 
-        err = setup_bpf_env_map(env_map_fd, &opt);
+        err = setup_bpf_env_map(env_map_fd);
         if (err < 0) {
                 fprintf(stderr, "%s: error: failed to setup bpf env map: %d\n",
                         LOG_BPFLOCK, err);
