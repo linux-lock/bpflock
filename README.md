@@ -3,7 +3,6 @@
 bpflock - eBPF driven security for locking and auditing Linux machines.
 
 
-
 ## Work In Progress
 
 This is a Work In Progress:
@@ -25,12 +24,12 @@ bpflock uses [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html) 
 
 ## 2. Protections
 
-bpflock implements protection using multiple small bpf programs each separated by functionality. Each program can be launched independently without interfering with
+bpflock combines multiple small bpf programs each separated by functionality. Each program can be launched independently without interfering with
 the rest.
 
 The semantic of all programs is:
 
-* Permission: each program supports three different permission model.
+* Permission: each program supports three different permission models.
   - Allow|none: access is allowed.
   - Deny: access is denied for all processes.
   - Restrict: access is allowed only from processes that are in the initial mnt and other namespaces. This allows systemd and container managers to properly access all functionality.
@@ -42,7 +41,7 @@ The semantic of all programs is:
   - Block: comma-separated list of blocked commands.
 
 
-### 2.2 kernel Image lock down
+### 2.1 kernel Image lock down
 
 kernelmem implements access restriction to prevent both direct and indirect access to a running kernel image.
 
@@ -58,8 +57,8 @@ It supports following options:
     - restrict: access is allowed only from processes that are in the initial mnt namespace. This allows systemd and container managers to
     properly setup the working environment or communicate with hardware. Default permission. 
 
- * Restricted access:
-   - integrity: run in integrity mode, kernel features that allow userland to modify the running kernel are disabled.
+ * Blocked access:
+   If in restrict mode, then the integrity mode of kernel lock down will be enforced for all processes that are not in the initial mnt namespace, and kernel features to modify the running kernel are blocked.
 
  * Special access exceptions in case of restricted access:
    - unsigned_module: allow unsigned module loading.
@@ -85,20 +84,20 @@ Examples:
   sudo kernelmem -p none
   ```
 
-* Restrict mode, access is allowed for processes in the initial mnt namespace:
+* Restrict mode, access is allowed only for processes in the initial mnt namespace:
   ```bash
   sudo kernelmem
   sudo kernelmem -p restrict
   ```
 
-* Restrict mode, disable all and allow only bpf writes to user RAM from processes in the initial mnt namespace:
+* Restrict mode, disable all direct and indirect access, but allow only bpf writes to user RAM from processes in the initial mnt namespace:
   ```bash
-  sudo kernelmem -p restrict -integrity -a bpf_write
+  sudo kernelmem -p restrict -a bpf_write
   ``` 
 
 * Restrict mode, disable all and allow debugfs, ioport and unsigned module loading from processes in the initial mnt namespace: 
   ```bash
-  sudo kernelmem -p restrict -integrity -a debugfs,ioport,unsigned_module
+  sudo kernelmem -p restrict -a debugfs,ioport,unsigned_module
   ``` 
 
 To disable this program delete the pinned file `/sys/fs/bpf/bpflock/kernelmem`. Re-executing will enable it again.
@@ -115,13 +114,36 @@ It supports following options:
     - deny: bpf syscall and all its commands are denied for all processes on the system.
     - restrict: bpf is allowed only from processes that are in the initial mnt namespace. This allows systemd or container managers to properly use bpf. Default value.
 
- * List of commands to block in case permission is restrict or allow:
+ * Comma-separated list of commands to block in case permission is restrict or allow:
     - map_create: block creation of bpf maps.
     - btf_load: block loading BPF Type Format (BTF) metadata into the kernel.
     - prog_load: block loading bpf programs.
     - All other commands are allowed by default.
     
     If list of commands to block is not set, then all bpf commands are allowed.
+
+Examples:
+
+* Deny BPF for all processes:
+  ```bash
+  sudo disablebpf -p deny
+  ```
+
+* BPF access is allowed:
+  ```bash
+  sudo disablebpf -p none
+  ```
+
+* Restrict mode, BPF access is allowed for processes in the initial mnt namespace:
+  ```bash
+  sudo disablebpf
+  sudo disablebpf -p restrict
+  ```
+
+* Restrict mode, BPF access is allowed only for processes in the initial mnt namespace, but the `btf_load` loading BTF metadata into the kernel is blocked:
+  ```bash
+  sudo kernelmem -p restrict -b btf_load
+  ```
 
 
 Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. For containers workload to disable this program, delete the pinned file `/sys/fs/bpf/bpflock/disable-bpf`. Re-executing will enable it again.
