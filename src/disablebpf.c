@@ -37,17 +37,18 @@ const char *argp_program_bug_address =
 const char argp_program_doc[] =
 "bpflock disablebpf - restrict access to BPF system call.\n"
 "\n"
-"USAGE: disablebpf [--help] [-p PERM] [-c CMD]\n"
+"USAGE: disablebpf [--help] [-p PERM] [-b CMD]\n"
 "\n"
 "EXAMPLES:\n"
 "  # BPF is allowed.\n"
 "  disablebpf -p allow\n\n"
 "  # Restrict BPF system call to tasks in initial mnt namespace.\n"
 "  disablebpf\n"
-"  disablebpf -p restrict\n"
-"\n  # Allow BPF load program command if task is in init mnt namespace.\n"
-"  disablebpf -p restrict -b prog_load\n"
-"\n  # Deny BPF system call for all.\n"
+"  disablebpf -p restrict\n\n"
+"  # Restrict BPF to tasks in initial mnt namespace and\n"
+"  # block the BPF load program command.\n"
+"  disablebpf -p restrict -b prog_load\n\n"
+"  # Deny BPF system call for all.\n"
 "  disablebpf -p deny\n";
 
 static const struct argp_option opts[] = {
@@ -64,8 +65,8 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
                 argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
                 break;
         case 'b':
-                if (strlen(arg) + 1 > 64) {
-                        fprintf(stderr, "invaild -a|--allow argument: too long\n");
+                if (strlen(arg) + 1 > 128) {
+                        fprintf(stderr, "invaild -b|--block argument: too long\n");
                         argp_usage(state);
                 }
                 opt.block_op = strndup(arg, strlen(arg));
