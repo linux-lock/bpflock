@@ -14,23 +14,21 @@
 #define BPFLOCK_BPF_PERM        1
 #define BPFLOCK_BPF_OP          2
 
+#define BPFLOCK_MAP_CREATE      (1 << 0)
+#define BPFLOCK_BTF_LOAD        (1 << 1)
+#define BPFLOCK_PROG_LOAD       (1 << 2)
+
 enum bpflock_bpf_perm_flag {
         BPFLOCK_BPF_ALLOW       = 1,
         BPFLOCK_BPF_RESTRICT,
         BPFLOCK_BPF_DENY,
 };
 
-enum bpflock_bpf_op {
-        BPFLOCK_MAP_CREATE      = (1 << 0),
-        BPFLOCK_BTF_LOAD        = (1 << 1),
-        BPFLOCK_PROG_LOAD       = (1 << 2),
-};
-
 struct bpflock_class_map bpf_security_map = {
         "bpf",
         "/sys/fs/bpf/bpflock/disable-bpf",
         { NULL },
-        { BPFLOCK_BPF_PERM, BPFLOCK_BPF_OP, BPFLOCK_MAP_CREATE, BPFLOCK_BTF_LOAD, BPFLOCK_PROG_LOAD, 0 }
+        { 0 }
 };
 
 /* End of bpf security class */
