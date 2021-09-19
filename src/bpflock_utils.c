@@ -4,14 +4,17 @@
 #define _GNU_SOURCE
 #endif
 
+#include <bpf/bpf.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/limits.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include "bpflock_utils.h"
 
@@ -163,4 +166,27 @@ out:
 int read_process_env(const char *path, char **ret)
 {
         return readlink_malloc(path, ret);
+}
+
+int read_task_mnt_id(const char *path, struct stat *st)
+{
+        if (stat(path, st) < 0)
+                return -errno;
+
+        return 0;
+}
+
+int pin_init_task_ns(int fd)
+{
+        struct stat id;
+        uint32_t k = 1;
+        int ret;
+
+        ret = read_task_mnt_id("/proc/1/ns/mnt", &id);
+        if (ret < 0)
+                return ret;
+
+        bpf_map_update_elem(fd, &k, &id, BPF_ANY);
+
+        return 0;
 }
