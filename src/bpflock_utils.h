@@ -7,8 +7,6 @@
 
 #define LSM_BPF_PATH "/sys/kernel/security/lsm"
 
-#define strneq(a, b, n) (strncmp((a), (b), (n)) == 0)
-
 #define STRV_FOREACH_BACKWARDS(s, l)                                \
         for (s = ({                                                 \
                         typeof(l) _l = l;                           \

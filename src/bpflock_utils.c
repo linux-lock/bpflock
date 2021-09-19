@@ -40,7 +40,7 @@ char *strv_env_get_n(char **l, const char *name, size_t k, unsigned flags)
                 return NULL;
 
         STRV_FOREACH_BACKWARDS(i, l)
-                if (strneq(*i, name, k) && (*i)[k] == '=')
+                if ((strncmp(*i, name, k) == 0) && (*i)[k] == '=')
                         return *i + k + 1;
 
         t = strndupa(name, k);
