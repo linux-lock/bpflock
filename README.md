@@ -9,23 +9,27 @@ This is a Work In Progress:
 
 * BPF programs are being updated
 
-* Programs will be updated soon to use [Cilium ebpf library](https://github.com/cilium/ebpf/) and turned into a small daemon for embedded Linux.
+* Programs will be updated soon to use [Cilium ebpf library](https://github.com/cilium/ebpf/) and turned into a small daemon.
 
 
 ## 1. Design
 
-bpflock is designed to work along side container managers to protect Linux machines using a system wide approach.
+bpflock is designed to work along side systemd or container managers to protect Linux machines using a system wide approach. It can be used on kubernetes deployments, Linux-IoT devices, and Linux work stations.
 
-bpflock will sandbox all processes and containers to protect the machine, only services like container managers or systemd manager that
-run in the initial mnt namespaces will be able to access all Linux kernel features, other containers that run on their own namespaces will be
+bpflock combines multiple bpf programs to sandbox tasks and containers in order to protect the machine, only services like systemd or container managers that
+run in the initial mnt namespaces will be able to access all Linux kernel features, other containers or tasks that run on their own namespaces will be
 restricted or completely blocked.
 
 bpflock uses [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html) to implement its security features.
 
+To read more about: [Linux namespaces](https://man7.org/linux/man-pages/man7/namespaces.7.html).
+
+
 ## 2. Protections
 
-bpflock combines multiple small bpf programs each separated by functionality. Each program can be launched independently without interfering with
-the rest.
+bpflock bpf programs are separated by functionality, where each program can be launched independently without interfering with the rest.
+
+### 2.1 Security semantics
 
 The semantic of all programs is:
 
@@ -41,7 +45,7 @@ The semantic of all programs is:
   - Block: comma-separated list of blocked commands.
 
 
-### 2.1 kernel Image lock down
+### 2.2 kernel Image lock down
 
 kernelmem implements access restriction to prevent both direct and indirect access to a running kernel image.
 
