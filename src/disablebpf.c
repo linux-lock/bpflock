@@ -5,12 +5,7 @@
  */
 
 /*
- * Implements access restrictions on bpf syscall, it supports following values:
- *
- * Documentation: https://github.com/linux-lock/bpflock/blob/main/README.md
- *
- * To disable this program, delete the pinned file "/sys/fs/bpf/bpflock/disable-bpf",
- * re-executing will enable it again.
+ * Implements access BPF access restrictions.
  */
 
 #include <argp.h>
@@ -18,6 +13,8 @@
 #include <errno.h>
 #include <string.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include "trace_helpers.h"
 #include "bpflock_utils.h"
@@ -86,16 +83,21 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 }
 
 /* Setup bpf map options */
-static int setup_bpf_opt_map(int fd)
+static int setup_bpf_opt_map(struct disablebpf_bpf *skel, int *fd)
 {
         uint32_t perm_k = BPFLOCK_BPF_PERM;
         uint32_t op_k = BPFLOCK_BPF_OP;
+        int f;
 
         opt.perm_int = 0;
         opt.block_op_int = 0;
 
-        if (fd <= 0)
-                return -EINVAL;
+        f = bpf_map__fd(skel->maps.disablebpf_map);
+        if (f < 0) {
+                fprintf(stderr, "%s: error: failed to get bpf map fd: %d\n",
+                        LOG_BPFLOCK, f);
+                return f;
+        }
 
         if (!opt.perm) {
                 opt.perm_int = BPFLOCK_BPF_RESTRICT;
@@ -104,7 +106,6 @@ static int setup_bpf_opt_map(int fd)
                         opt.perm_int = BPFLOCK_BPF_DENY;
                 } else if (strncmp(opt.perm, "restrict", 8) == 0) {
                         opt.perm_int = BPFLOCK_BPF_RESTRICT;
-                        printf("op: %s\n", opt.block_op);
                         if (strstr(opt.block_op, "map_create") != NULL)
                                 opt.block_op_int |= BPFLOCK_MAP_CREATE;
                         if (strstr(opt.block_op, "prog_load") != NULL)
@@ -117,25 +118,70 @@ static int setup_bpf_opt_map(int fd)
                 }
         }
 
-        bpf_map_update_elem(fd, &perm_k, &opt.perm_int, BPF_ANY);
+        *fd = f;
+
+        bpf_map_update_elem(f, &perm_k, &opt.perm_int, BPF_ANY);
         if (opt.block_op_int > 0)
-                bpf_map_update_elem(fd, &op_k, &opt.block_op_int, BPF_ANY);
+                bpf_map_update_elem(f, &op_k, &opt.block_op_int, BPF_ANY);
 
         return 0;
 }
 
-static int setup_bpf_env_map(int fd)
+/* Returns valid fd if it can reuses ns_map */
+int reuse_ns_map(struct disablebpf_bpf *skel, int *fd)
 {
-        char *value;
-        int ret;
-        /* Read mnt namespace */
+        struct stat st;
+        struct bpf_map *ns_map;
+        int err;
 
-        ret = read_process_env("/proc/1/ns/mnt", &value);
-        if (ret < 0)
-                return ret;
+        err = stat(BPFLOCK_NS_MAP_PIN, &st);
+        if (err < 0)
+                return 0;
 
-        free(value);
+        ns_map = bpf_object__find_map_by_name(skel->obj, "ns_map");
+        if (!ns_map)
+                return 0;
+
         return 0;
+}
+
+static int setup_bpf_env_map(struct disablebpf_bpf *skel, int *fd)
+{
+        struct stat st;
+        int err;
+        int f;
+
+        if (*fd > 0)
+                return 0;
+
+        f = bpf_map__fd(skel->maps.disablebpf_ns_map);
+        if (f < 0) {
+                fprintf(stderr, "%s: error: failed to get ns map fd: %d\n",
+                        LOG_BPFLOCK, f);
+                return f;
+        }
+
+        err = pin_init_task_ns(f);
+        if (err < 0) {
+                fprintf(stderr, "%s: error: failed to pin init task namespace: %d\n",
+                        LOG_BPFLOCK, err);
+                return err;
+        }
+
+        *fd = f;
+
+        if (stat(DISABLEBPF_NS_MAP_PIN, &st) == 0)
+                return 0;
+
+        err = bpf_map__pin(skel->maps.disablebpf_ns_map, DISABLEBPF_NS_MAP_PIN);
+        if (err < 0) {
+                fprintf(stderr, "%s: error: failed to pin ns map: %d\n",
+                        LOG_BPFLOCK, err);
+                return err;
+        }
+
+
+        return err;
 }
 
 int main(int argc, char **argv)
@@ -146,11 +192,13 @@ int main(int argc, char **argv)
                 .doc = argp_program_doc,
         };
 
-        struct disablebpf_bpf *skel;
+        struct disablebpf_bpf *skel = NULL;
         struct bpf_link *link = NULL;
-        struct bpf_program *prog;
-        char buf[100];
-        int err, disablebpf_map_fd, env_map_fd;
+        struct bpf_program *prog = NULL;
+        int disablebpf_map_fd = -1, ns_map_fd = -1;
+        struct stat st;
+        char *buf = NULL;
+        int err;
 
         err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
         if (err)
@@ -166,15 +214,32 @@ int main(int argc, char **argv)
         err = bump_memlock_rlimit();
         if (err) {
                 fprintf(stderr, "%s: error: failed to increase rlimit: %s\n",
-                                LOG_BPFLOCK, strerror(errno));
-                return 1;
+                        LOG_BPFLOCK, strerror(errno));
+                return err;
         }
+
+        err = stat(bpf_security_map.pin_path, &st);
+        if (err == 0) {
+                fprintf(stdout, "%s: %s already loaded nothing todo, please delete pinned file '%s' "
+                        "to be able to run it again.\n",
+                        LOG_BPFLOCK, argv[0], bpf_security_map.pin_path);
+                return -EALREADY;
+        }
+
+        buf = malloc(128);
+        if (!buf) {
+                fprintf(stderr, "%s: error: failed to allocate memory\n",
+                        LOG_BPFLOCK);
+                return ENOMEM;
+        }
+
+        memset(buf, 0, 128);
 
         skel = disablebpf_bpf__open();
         if (!skel) {
                 fprintf(stderr, "%s: error: failed to open BPF skelect\n",
                         LOG_BPFLOCK);
-                return 1;
+                goto cleanup;
         }
 
         err = disablebpf_bpf__load(skel);
@@ -184,31 +249,14 @@ int main(int argc, char **argv)
                 goto cleanup;
         }
 
-        disablebpf_map_fd = bpf_map__fd(skel->maps.disablebpf_map);
-        if (disablebpf_map_fd < 0) {
-                fprintf(stderr, "%s: error: failed to get bpf map fd: %d\n",
-                        LOG_BPFLOCK, disablebpf_map_fd);
-                err = disablebpf_map_fd;
-                goto cleanup;
-        }
-
-
-        env_map_fd = bpf_map__fd(skel->maps.disablebpf_env_map);
-        if (env_map_fd < 0) {
-                fprintf(stderr, "%s: error: failed to get bpf map fd: %d\n",
-                        LOG_BPFLOCK, env_map_fd);
-                err = env_map_fd;
-                goto cleanup;
-        }
-
-        err = setup_bpf_opt_map(disablebpf_map_fd);
+        err = setup_bpf_opt_map(skel, &disablebpf_map_fd);
         if (err < 0) {
                 fprintf(stderr, "%s: error: failed to setup bpf opt map: %d\n",
                         LOG_BPFLOCK, err);
                 goto cleanup;
         }
 
-        err = setup_bpf_env_map(env_map_fd);
+        err = setup_bpf_env_map(skel, &ns_map_fd);
         if (err < 0) {
                 fprintf(stderr, "%s: error: failed to setup bpf env map: %d\n",
                         LOG_BPFLOCK, err);
@@ -223,6 +271,7 @@ int main(int argc, char **argv)
                 goto cleanup;
         }
 
+        bpf_program__set_type(prog, BPF_PROG_TYPE_LSM);
         link = bpf_program__attach(prog);
         err = libbpf_get_error(link);
         if (err) {
@@ -235,7 +284,7 @@ int main(int argc, char **argv)
         err = bpf_link__pin(link, bpf_security_map.pin_path);
         if (err) {
                 libbpf_strerror(err, buf, sizeof(buf));
-                fprintf(stderr, "%s: error: failed to pin '%s'\n", LOG_BPFLOCK, buf);
+                fprintf(stderr, "%s: error: failed to pin program '%s'\n", LOG_BPFLOCK, buf);
                 goto cleanup;
         }
 
@@ -251,9 +300,12 @@ int main(int argc, char **argv)
         }
 
 cleanup:
-        bpf_link__destroy(link);
-        //bpf_link__destroy(link);
-        disablebpf_bpf__destroy(skel);
+        if (link)
+                bpf_link__destroy(link);
+        if (skel)
+                disablebpf_bpf__destroy(skel);
+
+        free(buf);
 
         return err != 0;
 }
