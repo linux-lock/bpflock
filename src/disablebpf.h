@@ -18,6 +18,8 @@
 #define BPFLOCK_BTF_LOAD        (1 << 1)
 #define BPFLOCK_PROG_LOAD       (1 << 2)
 
+#define DISABLEBPF_NS_MAP_PIN      "/sys/fs/bpf/bpflock/disablebpf_ns_map"
+
 enum bpflock_bpf_perm_flag {
         BPFLOCK_BPF_ALLOW       = 1,
         BPFLOCK_BPF_RESTRICT,
