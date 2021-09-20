@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "bpflock_bpf_defs.h"
 #include "bpflock_utils.h"
 
 size_t strv_length(char * const *l)
@@ -179,6 +180,7 @@ int read_task_mnt_id(const char *path, struct stat *st)
 int pin_init_task_ns(int fd)
 {
         struct stat id;
+        struct bl_stat bst;
         uint32_t k = 1;
         int ret;
 
@@ -186,7 +188,9 @@ int pin_init_task_ns(int fd)
         if (ret < 0)
                 return ret;
 
-        bpf_map_update_elem(fd, &k, &id, BPF_ANY);
+        bst.st_dev = id.st_dev;
+        bst.st_ino = id.st_ino;
+        bpf_map_update_elem(fd, &k, &bst, BPF_ANY);
 
         return 0;
 }
