@@ -13,21 +13,22 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <errno.h>
+#include "bpflock_bpf_defs.h"
 #include "disablebpf.h"
 
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 16);
+        __uint(max_entries, 8);
         __type(key, uint32_t);
         __type(value, uint32_t);
 } disablebpf_map SEC(".maps");
 
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 16);
-        __type(key, u64);
-        __type(value, u64);
-} disablebpf_env_map SEC(".maps");
+        __uint(max_entries, 8);
+        __type(key, uint32_t);
+        __type(value, struct bl_stat);
+} disablebpf_ns_map SEC(".maps");
 
 int pinned_bpf = 0;
 
