@@ -12,6 +12,7 @@
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
 #include <errno.h>
 #include "bpflock_bpf_defs.h"
 #include "disablebpf.h"
@@ -32,6 +33,23 @@ struct {
 
 int pinned_bpf = 0;
 
+static __always_inline bool is_init_mnt_ns(void)
+{
+        struct bl_stat *st;
+        uint32_t k = 1;
+        unsigned long inum = 0;
+        struct task_struct *task;
+
+        st = bpf_map_lookup_elem(&disablebpf_ns_map, &k);
+        if (!st)
+                return false;
+
+        task = (struct task_struct *)bpf_get_current_task();
+        inum = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+
+        return (inum == st->st_ino);
+}
+
 SEC("lsm/bpf")
 int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
              unsigned int size, int ret)
@@ -51,13 +69,16 @@ int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
                 if (blocked == BPFLOCK_BPF_DENY)
                         return -EACCES;
 
-                /* Filter allow too
-                if (allowed == BPFLOCK_BPF_ALLOW)
+                if (blocked == BPFLOCK_BPF_ALLOW)
                         return 0;
-                */
 
-                /* Here we just force restrict */
+                /* Here we just enforce restrict */
                 k = BPFLOCK_BPF_OP;
+
+                /* If not in init namespace deny access */
+                if (!is_init_ns())
+                        return -EACCES;
+
                 /* Check if a list of blocked operations was set, if not then allow BPF commands */
                 val = bpf_map_lookup_elem(&disablebpf_map, &k);
                 if (!val)
