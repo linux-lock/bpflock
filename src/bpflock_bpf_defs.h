@@ -4,12 +4,12 @@
  * Copyright (C) 2021 Djalal Harouni
  */
 
-#ifndef __BPF_DEFS_H
-#define __BPF_DEFS_H
+#ifndef __BPFLOCK_BPF_DEFS_H
+#define __BPFLOCK_BPF_DEFS_H
 
 struct bl_stat {
 	unsigned long  st_dev;	/* Device.  */
 	unsigned long  st_ino;	/* File serial number.  */
 };
 
-#endif /* __BPF_DEFS_H */
+#endif /* __BPFLOCK_BPF_DEFS_H */
