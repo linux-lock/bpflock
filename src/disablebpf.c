@@ -230,7 +230,7 @@ int main(int argc, char **argv)
         if (!buf) {
                 fprintf(stderr, "%s: error: failed to allocate memory\n",
                         LOG_BPFLOCK);
-                return ENOMEM;
+                return -ENOMEM;
         }
 
         memset(buf, 0, 128);
@@ -239,6 +239,7 @@ int main(int argc, char **argv)
         if (!skel) {
                 fprintf(stderr, "%s: error: failed to open BPF skelect\n",
                         LOG_BPFLOCK);
+                err = -EINVAL;
                 goto cleanup;
         }
 
