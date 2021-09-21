@@ -76,7 +76,7 @@ int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
                 k = BPFLOCK_BPF_OP;
 
                 /* If not in init namespace deny access */
-                if (!is_init_ns())
+                if (!is_init_mnt_ns())
                         return -EACCES;
 
                 /* Check if a list of blocked operations was set, if not then allow BPF commands */
