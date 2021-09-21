@@ -47,7 +47,7 @@ The semantic of all programs is:
 
 ### 2.2 kernel Image lock down
 
-kernelmem implements access restriction to prevent both direct and indirect access to a running kernel image.
+kimg - kernel image implements access restriction to prevent both direct and indirect access to a running kernel image.
 
 It uses the [kernel lockdown LSM](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) to protect against unauthorized modification of the kernel image and to prevent access to security and cryptographic data located in kernel memory.
 
@@ -56,7 +56,7 @@ It uses the [kernel lockdown LSM](https://man7.org/linux/man-pages/man7/kernel_l
 It supports following options:
 
  * Permission:
-    - allow|none: kernelmem is disabled. All access is allowed.
+    - allow|none: kimg is disabled. All access is allowed.
     - deny: direct and indirect access to a running kernel image is denied for all processes and containers, this will force the integrity mode.
     - restrict: access is allowed only from processes that are in the initial mnt namespace. This allows systemd and container managers to
     properly setup the working environment or communicate with hardware. Default permission. 
@@ -80,31 +80,31 @@ Examples:
 
 * Deny direct and indirect access for all processes:
   ```bash
-  sudo kernelmem -p deny
+  sudo kimg -p deny
   ```
 
 * All access is allowed:
   ```bash
-  sudo kernelmem -p none
+  sudo kimg -p none
   ```
 
 * Restrict mode, access is allowed only for processes in the initial mnt namespace:
   ```bash
-  sudo kernelmem
-  sudo kernelmem -p restrict
+  sudo kimg
+  sudo kimg -p restrict
   ```
 
 * Restrict mode, disable all direct and indirect access, but allow only bpf writes to user RAM from processes in the initial mnt namespace:
   ```bash
-  sudo kernelmem -p restrict -a bpf_write
+  sudo kimg -p restrict -a bpf_write
   ``` 
 
 * Restrict mode, disable all and allow debugfs, ioport and unsigned module loading from processes in the initial mnt namespace: 
   ```bash
-  sudo kernelmem -p restrict -a debugfs,ioport,unsigned_module
+  sudo kimg -p restrict -a debugfs,ioport,unsigned_module
   ``` 
 
-To disable this program delete the pinned file `/sys/fs/bpf/bpflock/kernelmem`. Re-executing will enable it again.
+To disable this program delete the pinned file `/sys/fs/bpf/bpflock/kimg`. Re-executing will enable it again.
 
 
 ### 2.3 BPF protection
@@ -146,7 +146,7 @@ Examples:
 
 * Restrict mode, BPF access is allowed only for processes in the initial mnt namespace, but the `btf_load` loading BTF metadata into the kernel is blocked:
   ```bash
-  sudo kernelmem -p restrict -b btf_load
+  sudo disablebpf -p restrict -b btf_load
   ```
 
 
