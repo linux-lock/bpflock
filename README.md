@@ -32,8 +32,14 @@ bpflock bpf programs are separated by security functionality, where each program
 * [Memory protections](https://github.com/linux-lock/bpflock#31-memory-protections):
 
   - [Kernel image lock down](https://github.com/linux-lock/bpflock#311-kernel-image-lockdown)
-  - 
-* 
+  - [Kernel modules protection](https://github.com/linux-lock/bpflock#312-kernel-modules-protection)
+  - Execution of In-Memory-Only ELF binaries(memfd)
+  - [BPF protection](https://github.com/linux-lock/bpflock#314-bpf-protection)
+
+* [Filesystem protections]
+
+  - Read-only root filesystem protection
+  - sysfs protection
 
 ### 2.2 Semantics
 
@@ -55,13 +61,11 @@ The semantic of all programs is:
 
 ### 3.1 Memory protections
 
-### 3.1.1 kernel image lock down
+#### 3.1.1 kernel image lock down
 
 kimg - kernel image implements restrictions to prevent both direct and indirect access to a running kernel image.
 
 It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) features and other Linux Security Module hooks to protect against unauthorized modification of the kernel image.
-
-#### 3.1.1 kimg protections
 
 kimg will restrict or block access to the following features:
 
@@ -84,8 +88,6 @@ kimg will restrict or block access to the following features:
   - bpf writes to user RAM.
 
 **Note: this is still a moving target. Options are not stable**.
-
-#### 3.1.2 kimg options
 
 kimg supports the following options:
 
@@ -147,7 +149,19 @@ Examples:
 To disable this program delete the pinned file `/sys/fs/bpf/bpflock/kimg`. Re-executing will enable it again.
 
 
-### 3.2 BPF protection
+#### 3.1.2 Kernel modules protections
+
+kmodules - implements restrictions to control module load and unload operations on modular kernels.
+
+kimg will restrict or block access to:
+
+  - Explicit module loading.
+  - Loading of unsigned modules.
+  - Automatic loading of kernel modules. This will block users (or attackers) from auto-loading modules. Unprivileged code will not be able to load "vulnerable" modules in this case. 
+  - Unsafe usage of module parameters.
+
+
+#### 3.1.4 BPF protection
 
 disablebpf implements access restrictions on bpf syscall.
 
@@ -193,18 +207,17 @@ Examples:
 Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. For containers workload to disable this program, delete the pinned file `/sys/fs/bpf/bpflock/disable-bpf`. Re-executing will enable it again.
 
 
-## Applications
+### 3.2 Filesystem protections
 
 
-* disablebpf: will disable the bpf() syscall completely for all, including systemd or the container manager. This attended to be the last protection after applying other protections.
-
-* restrictfilesystems: disables access to some file systems, as this is attended to be used with restricting mounting filesystems to make sure that even during embedded systems updates we keep window of arbitrary filesystem access restricted.
+### 3.3 Namespace protections
 
 
-## 3. Build and Dependencies
+
+## 4. Build and Dependencies
 
 
-### 3.1 libbpf as git-submodule
+### 4.1 libbpf as git-submodule
 
 This repository uses libbpf as a git-submodule. After cloning this repository you need to run the command:
 
@@ -218,7 +231,7 @@ If you want submodules to be part of the clone, you can use this command:
 git clone --recurse-submodules https://github.com/linux-lock/bpflock
 ```
 
-### 3.2 kernel
+### 4.2 kernel
 
 Tested on a kernel +5.11 with the following options:
 
@@ -230,7 +243,7 @@ CONFIG_LSM="...,bpf"
 CONFIG_BPF_LSM=y
 ```
 
-### 3.3 Other dependencies
+### 4.3 Other dependencies
 
 * Ubuntu
   ```bash
@@ -240,7 +253,7 @@ CONFIG_BPF_LSM=y
   ```
 
 
-### 3.4 Build
+### 4.4 Build
 
 Get libbpf if not:
 ```
