@@ -46,15 +46,15 @@ bpflock bpf programs are separated by security functionality, where each program
 The semantic of all programs is:
 
 * Permission: each program supports three different permission models.
-  - Allow|none: access is allowed.
-  - Deny: access is denied for all processes.
-  - Restrict: access is allowed only from processes that are in the initial mnt and other namespaces. This allows systemd and container managers to properly access all functionality.
+  - `allow|none`: access is allowed.
+  - `deny`: access is denied for all processes.
+  - `restrict`: access is allowed only from processes that are in the initial mnt and other namespaces. This allows systemd and container managers to properly access all functionality.
 
 
 * Allowed or blocked operations/commands:
   when a program runs under the allow or restrict permission model, it can defines a list of allowed or blocked commands.
-  - Allow: comma-separated list of allowed commands.
-  - Block: comma-separated list of blocked commands.
+  - `allow`: comma-separated list of allowed commands.
+  - `block`: comma-separated list of blocked commands.
 
 
 ## 3. Protections
@@ -151,9 +151,7 @@ To disable this program delete the pinned file `/sys/fs/bpf/bpflock/kimg`. Re-ex
 
 #### 3.1.2 Kernel modules protections
 
-kmodules - implements restrictions to control module load and unload operations on modular kernels.
-
-kimg will restrict or block access to:
+kmodules - implements restrictions to control module load and unload operations on modular kernels. It will allow to restrict or block access to:
 
   - Explicit module loading.
   - Loading of unsigned modules.
