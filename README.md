@@ -12,24 +12,30 @@ This is a Work In Progress:
 * Programs will be updated soon to use [Cilium ebpf library](https://github.com/cilium/ebpf/) and turned into a small daemon.
 
 
-## 1. Design
+## 1. Introduction
 
-bpflock is designed to work along side systemd or container managers to protect Linux machines using a system wide approach. It can be used on kubernetes deployments, Linux-IoT devices, and Linux work stations.
+bpflock is designed to work along side systemd or container managers to protect Linux machines using a system wide approach. It can be used on kubernetes deployments, servers, Linux-IoT devices, and work stations.
 
-bpflock combines multiple bpf programs to sandbox tasks and containers in order to protect the machine, only services like systemd or container managers that
-run in the initial mnt namespaces will be able to access all Linux kernel features, other containers or tasks that run on their own namespaces will be
+bpflock combines multiple bpf programs to sandbox tasks and containers, only services like systemd or container managers that run in the initial [mnt namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access all Linux kernel features, other tasks including containers that run on their own namespaces will be
 restricted or completely blocked.
+
+To read more about Linux namespaces: [Linux namespaces man pages](https://man7.org/linux/man-pages/man7/namespaces.7.html).
 
 bpflock uses [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html) to implement its security features.
 
-To read more about: [Linux namespaces](https://man7.org/linux/man-pages/man7/namespaces.7.html).
+## 2. Security design
 
+bpflock bpf programs are separated by security functionality, where each program can be launched independently without interfering with the rest. Combined together they allow to restrict or block the access to a wide range of Linux kernel features.
 
-## 2. Protections
+### 2.1 Security features
 
-bpflock bpf programs are separated by functionality, where each program can be launched independently without interfering with the rest.
+* [Memory protections](https://github.com/linux-lock/bpflock#31-memory-protections):
 
-### 2.1 Security semantics
+  - [Kernel image lock down](https://github.com/linux-lock/bpflock#311-kernel-image-lockdown)
+  - 
+* 
+
+### 2.2 Semantics
 
 The semantic of all programs is:
 
@@ -45,35 +51,69 @@ The semantic of all programs is:
   - Block: comma-separated list of blocked commands.
 
 
-### 2.2 kernel Image lock down
+## 3. Protections
 
-kimg - kernel image implements access restriction to prevent both direct and indirect access to a running kernel image.
+### 3.1 Memory protections
 
-It uses the [kernel lockdown LSM](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) to protect against unauthorized modification of the kernel image and to prevent access to security and cryptographic data located in kernel memory.
+### 3.1.1 kernel image lock down
 
-**Note: options are not stable and this is a moving target**.
+kimg - kernel image implements restrictions to prevent both direct and indirect access to a running kernel image.
 
-It supports following options:
+It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) features and other Linux Security Module hooks to protect against unauthorized modification of the kernel image.
+
+#### 3.1.1 kimg protections
+
+kimg will restrict or block access to the following features:
+
+  - Automatic loading of kernel modules. This will block users (or attackers) from auto-loading modules. Unprivileged code will not be able to load "vulnerable" modules, however it is not effective against code running with root privileges, where it is able to load modules explicitly.  
+  - Loading of unsigned modules.
+  - Unsafe usage of module parameters.
+  - Access to `/dev/mem, /dev/kmem and /dev/port`.
+  - Access to `/dev/efi_test`.
+  - kexec of unsigned images.
+  - Hibernation of the machine.
+  - Direct PCI access.
+  - Raw io port access.
+  - Raw MSR registers access.
+  - Modification of ACPI tables.
+  - Direct PCMCIA CIS storage.
+  - Reconfiguration of serial port IO.
+  - Usage of the ioperm and iopl instructions on x86. 
+  - Debugfs access.
+  - xmon write access.
+  - bpf writes to user RAM.
+
+**Note: this is still a moving target. Options are not stable**.
+
+#### 3.1.2 kimg options
+
+kimg supports the following options:
 
  * Permission:
     - allow|none: kimg is disabled. All access is allowed.
-    - deny: direct and indirect access to a running kernel image is denied for all processes and containers, this will force the integrity mode.
+    - deny: direct and indirect access to a running kernel image is denied for all processes and containers.
     - restrict: access is allowed only from processes that are in the initial mnt namespace. This allows systemd and container managers to
     properly setup the working environment or communicate with hardware. Default permission. 
 
  * Blocked access:
-   If in restrict mode, then the integrity mode of kernel lock down will be enforced for all processes that are not in the initial mnt namespace, and kernel features to modify the running kernel are blocked.
+   If in restrict mode, then the integrity mode of kernel lock down will be enforced for all processes that are not in the initial mnt namespace, and [kernel features](https://github.com/linux-lock/bpflock#311-kimg-options) to modify the running kernel are blocked.
 
- * Special access exceptions in case of restricted access:
-   - unsigned_module: allow unsigned module loading.
-   - dev_mem: access to /dev/{mem,kmem,port} is allowed.
-   - kexec: kexec of unsigned images is allowed.
-   - hibernation: hibernation is allowed.
-   - ioport: raw io port access is allowed.
-   - msr: raw msr access is allowed.
-   - debugfs: debugfs is allowed.
-   - xmon_rw: xmon write access is allowed.
-   - bpf_write: use of bpf write to user RAM is allowed.
+ * Special access exceptions:
+   If running under `restrict` permission model, then a coma-separated list of allowed features can be specified:
+   - `unsigned_module` : allow unsigned module loading.
+   - `autoload_module` : allow automatic module loading.
+   - `unsafe_module_parameters` : allow module parameters that directly specify hardware
+         parameters to drivers 
+   - `dev_mem` : access to /dev/{mem,kmem,port} is allowed.
+   - `kexec` : kexec of unsigned images is allowed.
+   - `hibernation` : hibernation is allowed.
+   - `pci_access` : allow direct PCI BAR access.
+   - `ioport` : raw io port access is allowed.
+   - `msr` : raw msr access is allowed.
+   - `mmiotrace` : tracing memory mapped I/O is allowed.
+   - `debugfs` : debugfs is allowed.
+   - `xmon_rw` : xmon write access is allowed.
+   - `bpf_write` : use of bpf write to user RAM is allowed.
 
 
 Examples:
@@ -107,7 +147,7 @@ Examples:
 To disable this program delete the pinned file `/sys/fs/bpf/bpflock/kimg`. Re-executing will enable it again.
 
 
-### 2.3 BPF protection
+### 3.2 BPF protection
 
 disablebpf implements access restrictions on bpf syscall.
 
@@ -155,8 +195,6 @@ Make sure to execute this program last during boot and after all necessary bpf p
 
 ## Applications
 
-* disableautomod: will block users (or
-  attackers) from auto-loading modules. This will block unprivileged code from loading possible vulnerable modules, however it is not effective against code running with root privileges, where it is able to load modules explicitly.  
 
 * disablebpf: will disable the bpf() syscall completely for all, including systemd or the container manager. This attended to be the last protection after applying other protections.
 
