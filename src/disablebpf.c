@@ -24,8 +24,10 @@
 static struct options {
         int perm_int;
         int block_op_int;
+        int allow_op_int;
         char *perm;
         char *block_op;
+        char *allow_op;
 } opt = {};
 
 const char *argp_program_version = "disablebpf 0.1";
@@ -34,7 +36,7 @@ const char *argp_program_bug_address =
 const char argp_program_doc[] =
 "bpflock disablebpf - restrict access to BPF system call.\n"
 "\n"
-"USAGE: disablebpf [--help] [-p PERM] [-b CMD]\n"
+"USAGE: disablebpf [--help] [-p PERM] [-a CMD] [-b CMD]\n"
 "\n"
 "EXAMPLES:\n"
 "  # BPF is allowed.\n"
@@ -49,6 +51,7 @@ const char argp_program_doc[] =
 "  disablebpf -p deny\n";
 
 static const struct argp_option opts[] = {
+        { "allow", 'a', "CMD", 0, "Allow BPF commands, possible values: 'bpf_write' " },
         { "permission", 'p', "PERM", 0, "Permission to apply, one of the following: allow, restrict or deny. Default value is: restrict." },
         { "block", 'b', "CMD", 0, "Block BPF commands, possible values: 'map_create, prog_load, btf_load' " },
         { NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
@@ -60,6 +63,13 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
         switch (key) {
         case 'h':
                 argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
+                break;
+        case 'a':
+                if (strlen(arg) + 1 > 128) {
+                        fprintf(stderr, "invalid -a|--allow argument: too long\n");
+                        argp_usage(state);
+                }
+                opt.allow_op = strndup(arg, strlen(arg));
                 break;
         case 'b':
                 if (strlen(arg) + 1 > 128) {
@@ -112,6 +122,10 @@ static int setup_bpf_opt_map(struct disablebpf_bpf *skel, int *fd)
                                 opt.block_op_int |= BPFLOCK_PROG_LOAD;
                         if (strstr(opt.block_op, "btf_load") != NULL)
                                 opt.block_op_int |= BPFLOCK_BTF_LOAD;
+
+                        if (strstr(opt.allow_op, "bpf_write") != NULL)
+                                opt.allow_op_int |= BPFLOCK_BPF_WRITE;
+
                 } else if (strncmp(opt.perm, "allow", 5) == 0 ||
                            strncmp(opt.perm, "none", 4) == 0) {
                         opt.perm_int = BPFLOCK_BPF_ALLOW;
@@ -123,6 +137,10 @@ static int setup_bpf_opt_map(struct disablebpf_bpf *skel, int *fd)
         bpf_map_update_elem(f, &perm_k, &opt.perm_int, BPF_ANY);
         if (opt.block_op_int > 0)
                 bpf_map_update_elem(f, &op_k, &opt.block_op_int, BPF_ANY);
+
+        op_k = BPFLOCK_BPF_ALLOW_OP;
+        if (opt.allow_op_int > 0)
+                bpf_map_update_elem(f, &op_k, &opt.allow_op_int, BPF_ANY);
 
         return 0;
 }
@@ -264,28 +282,11 @@ int main(int argc, char **argv)
                 goto cleanup;
         }
 
-        prog = bpf_program__next(NULL, skel->obj);
-        if (!prog) {
-                fprintf(stderr, "%s: error: failed to find LSM disable bpf program!\n",
-                        LOG_BPFLOCK);
-                err = -ENOENT;
-                goto cleanup;
-        }
-
-        bpf_program__set_type(prog, BPF_PROG_TYPE_LSM);
-        link = bpf_program__attach(prog);
-        err = libbpf_get_error(link);
+        err = bpf_object__pin(skel->obj, bpf_security_map.pin_path);
         if (err) {
                 libbpf_strerror(err, buf, sizeof(buf));
-                fprintf(stderr, "%s: error: failed to attach BPF programs: %s\n",
-                        LOG_BPFLOCK, strerror(-err));
-                goto cleanup;
-        }
-
-        err = bpf_link__pin(link, bpf_security_map.pin_path);
-        if (err) {
-                libbpf_strerror(err, buf, sizeof(buf));
-                fprintf(stderr, "%s: error: failed to pin program '%s'\n", LOG_BPFLOCK, buf);
+                fprintf(stderr, "%s: error: failed to pin bpf obj into '%s'\n",
+			LOG_BPFLOCK, buf);
                 goto cleanup;
         }
 
