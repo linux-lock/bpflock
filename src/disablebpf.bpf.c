@@ -35,19 +35,66 @@ int pinned_bpf = 0;
 
 static __always_inline bool is_init_mnt_ns(void)
 {
-        struct bl_stat *st;
-        uint32_t k = 1;
-        unsigned long inum = 0;
         struct task_struct *task;
+        struct nsproxy *nsp;
+        struct bl_stat *st;
+        unsigned long ino = 0;
+        uint32_t k = 1;
 
+        /*
+         * If we fail to read stat namespaces then just assume
+         * not same namespaces.
+         */
         st = bpf_map_lookup_elem(&disablebpf_ns_map, &k);
         if (!st)
                 return false;
 
         task = (struct task_struct *)bpf_get_current_task();
-        inum = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+        bpf_core_read(&nsp, sizeof(nsp), &task->nsproxy);
+        ino = BPF_CORE_READ(nsp, mnt_ns, ns.inum);
 
-        return (inum == st->st_ino);
+        /*
+         * For now lets compare only ino which is the ns.inum
+         * on proc.
+         */
+        return ino == PROC_DYNAMIC_FIRST && ino == st->st_ino;
+}
+
+SEC("lsm/locked_down")
+int BPF_PROG(bpflock_disablebpf_bpf_write, enum lockdown_reason what, int ret)
+{
+        uint32_t *val, blocked = 0, allowed = 0;
+        uint32_t k = BPFLOCK_BPF_PERM;
+
+        if (ret != 0 || what != LOCKDOWN_BPF_WRITE_USER || !pinned_bpf)
+		return ret;
+
+        val = bpf_map_lookup_elem(&disablebpf_map, &k);
+        if (!val)
+		return 0;
+
+        blocked = *val;
+        if (blocked == BPFLOCK_BPF_DENY)
+                return -EACCES;
+        else if (blocked == BPFLOCK_BPF_ALLOW)
+		return 0;
+
+        /* If restrict and not in init namespace deny access */
+        if (!is_init_mnt_ns())
+                return -EACCES;
+
+        k = BPFLOCK_BPF_ALLOW_OP;
+
+        /* If not found deny access */
+        val = bpf_map_lookup_elem(&disablebpf_map, &k);
+        if (!val)
+                return -EACCES;
+
+        allowed = *val;
+        if (allowed & BPFLOCK_BPF_WRITE)
+                return 0;
+
+        return -EACCES;
 }
 
 SEC("lsm/bpf")
@@ -69,17 +116,17 @@ int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
                 if (blocked == BPFLOCK_BPF_DENY)
                         return -EACCES;
 
-                if (blocked == BPFLOCK_BPF_ALLOW)
-                        return 0;
-
-                /* Here we just enforce restrict */
-                k = BPFLOCK_BPF_OP;
-
-                /* If not in init namespace deny access */
-                if (!is_init_mnt_ns())
+                /* If restrict and not in init namespace deny access */
+                if (blocked == BPFLOCK_BPF_RESTRICT && !is_init_mnt_ns())
                         return -EACCES;
 
-                /* Check if a list of blocked operations was set, if not then allow BPF commands */
+                k = BPFLOCK_BPF_OP;
+
+                /*
+		   Check if a list of blocked operations was set,
+		   if not then allow BPF commands.
+		   This covers both restrict and allow permissions.
+		 */
                 val = bpf_map_lookup_elem(&disablebpf_map, &k);
                 if (!val)
                         return 0;
