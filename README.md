@@ -29,17 +29,20 @@ bpflock bpf programs are separated by security functionality, where each program
 
 ### 2.1 Security features
 
-* [Memory protections](https://github.com/linux-lock/bpflock#31-memory-protections):
+* [Memory protections](https://github.com/linux-lock/bpflock#31-memory-protections)
 
   - [Kernel image lock down](https://github.com/linux-lock/bpflock#311-kernel-image-lock-down)
   - [Kernel modules protection](https://github.com/linux-lock/bpflock#312-kernel-modules-protections)
   - [Execution of In-Memory-Only ELF binaries (memfd)](https://github.com/linux-lock/bpflock#313-execution-of-in-memory-only-elf-binaries)
   - [BPF protection](https://github.com/linux-lock/bpflock#314-bpf-protection)
 
-* [Filesystem protections]
+* [Filesystem protections](https://github.com/linux-lock/bpflock#32-filesystem-protections)
 
   - Read-only root filesystem protection
   - sysfs protection
+
+* [Namespaces protections](https://github.com/linux-lock/bpflock#33-namespaces-protections)
+
 
 ### 2.2 Semantics
 
@@ -215,9 +218,12 @@ Make sure to execute this program last during boot and after all necessary bpf p
 
 ### 3.2 Filesystem protections
 
+To be added.
 
-### 3.3 Namespace protections
 
+### 3.3 Namespaces protections
+
+To be added.
 
 
 ## 4. Build and Dependencies
