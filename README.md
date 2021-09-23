@@ -150,7 +150,7 @@ Examples:
   sudo kimg -p restrict -a debugfs,ioport,unsigned_module
   ``` 
 
-To disable this program delete the pinned file `/sys/fs/bpf/bpflock/kimg`. Re-executing will enable it again.
+To disable this program delete the directory and all its pinned content `/sys/fs/bpf/bpflock/kimg`. Re-executing will enable it again.
 
 
 #### 3.1.2 Kernel modules protections
@@ -213,7 +213,7 @@ Examples:
   sudo disablebpf -p restrict -a bpf_write
   ```
 
-Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. For containers workload to disable this program, delete the pinned file `/sys/fs/bpf/bpflock/disable-bpf`. Re-executing will enable it again.
+Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. For containers workload to disable this program, delete the directory `/sys/fs/bpf/bpflock/disable-bpf` and all its pinned content. Re-executing will enable it again.
 
 
 ### 3.2 Filesystem protections
