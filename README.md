@@ -31,9 +31,9 @@ bpflock bpf programs are separated by security functionality, where each program
 
 * [Memory protections](https://github.com/linux-lock/bpflock#31-memory-protections):
 
-  - [Kernel image lock down](https://github.com/linux-lock/bpflock#311-kernel-image-lockdown)
-  - [Kernel modules protection](https://github.com/linux-lock/bpflock#312-kernel-modules-protection)
-  - Execution of In-Memory-Only ELF binaries(memfd)
+  - [Kernel image lock down](https://github.com/linux-lock/bpflock#311-kernel-image-lock-down)
+  - [Kernel modules protection](https://github.com/linux-lock/bpflock#312-kernel-modules-protections)
+  - [Execution of In-Memory-Only ELF binaries (memfd)](https://github.com/linux-lock/bpflock#313-execution-of-in-memory-only-elf-binaries)
   - [BPF protection](https://github.com/linux-lock/bpflock#314-bpf-protection)
 
 * [Filesystem protections]
@@ -67,6 +67,8 @@ kimg - kernel image implements restrictions to prevent both direct and indirect 
 
 It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) features and other Linux Security Module hooks to protect against unauthorized modification of the kernel image.
 
+**Note: this is still a moving target. Options are not stable**.
+
 kimg will restrict or block access to the following features:
 
   - Automatic loading of kernel modules. This will block users (or attackers) from auto-loading modules. Unprivileged code will not be able to load "vulnerable" modules, however it is not effective against code running with root privileges, where it is able to load modules explicitly.  
@@ -87,7 +89,6 @@ kimg will restrict or block access to the following features:
   - xmon write access.
   - bpf writes to user RAM.
 
-**Note: this is still a moving target. Options are not stable**.
 
 kimg supports the following options:
 
@@ -166,17 +167,20 @@ disablebpf implements access restrictions on bpf syscall.
 It supports following options:
 
  * Permission:
-    - allow|none: bpf is allowed.
-    - deny: bpf syscall and all its commands are denied for all processes on the system.
-    - restrict: bpf is allowed only from processes that are in the initial mnt namespace. This allows systemd or container managers to properly use bpf. Default value.
+    - `allow|none`: bpf is allowed.
+    - `deny`: bpf syscall and all its commands are denied for all processes on the system.
+    - `restrict`: bpf is allowed only from processes that are in the initial mnt namespace. This allows systemd or container managers to properly use bpf. Default value.
 
- * Comma-separated list of commands to block in case permission is restrict or allow:
-    - map_create: block creation of bpf maps.
-    - btf_load: block loading BPF Type Format (BTF) metadata into the kernel.
-    - prog_load: block loading bpf programs.
+ * Command to allow in case permission is `restrict`:
+    - `bpf_write`: allow bpf_probe_write_user() helper that can be used to override user space memory. By default it is blocked.
+
+ * Comma-separated list of commands to block in case permission is `restrict` or `allow`:
+    - `map_create`: block creation of bpf maps.
+    - `btf_load`: block loading BPF Type Format (BTF) metadata into the kernel.
+    - `prog_load`: block loading bpf programs.
     - All other commands are allowed by default.
     
-    If list of commands to block is not set, then all bpf commands are allowed.
+    If the list of commands to block is not set, then all bpf commands are allowed.
 
 Examples:
 
@@ -190,17 +194,21 @@ Examples:
   sudo disablebpf -p none
   ```
 
-* Restrict mode, BPF access is allowed for processes in the initial mnt namespace:
+* Restrict mode, BPF access is allowed from processes in the initial mnt namespace:
   ```bash
   sudo disablebpf
   sudo disablebpf -p restrict
   ```
 
-* Restrict mode, BPF access is allowed only for processes in the initial mnt namespace, but the `btf_load` loading BTF metadata into the kernel is blocked:
+* Restrict mode, BPF access is allowed only from processes in the initial mnt namespace, but the `btf_load` loading BTF metadata into the kernel is blocked:
   ```bash
   sudo disablebpf -p restrict -b btf_load
   ```
 
+* Restrict mode, BPF access is allowed only from processes in the initial mnt namespace. The bpf_probe_write_user() helper to write user RAM is also explicitly allowed from the initial mnt namespace only:
+  ```bash
+  sudo disablebpf -p restrict -a bpf_write
+  ```
 
 Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. For containers workload to disable this program, delete the pinned file `/sys/fs/bpf/bpflock/disable-bpf`. Re-executing will enable it again.
 
