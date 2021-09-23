@@ -13,6 +13,9 @@
 
 #define BPFLOCK_BPF_PERM        1
 #define BPFLOCK_BPF_OP          2
+#define BPFLOCK_BPF_ALLOW_OP	3
+
+#define BPFLOCK_BPF_WRITE	(1 << 0)
 
 #define BPFLOCK_MAP_CREATE      (1 << 0)
 #define BPFLOCK_BTF_LOAD        (1 << 1)
