@@ -67,17 +67,17 @@ int BPF_PROG(bpflock_disablebpf_bpf_write, enum lockdown_reason what, int ret)
         uint32_t k = BPFLOCK_BPF_PERM;
 
         if (ret != 0 || what != LOCKDOWN_BPF_WRITE_USER || !pinned_bpf)
-		return ret;
+                return ret;
 
         val = bpf_map_lookup_elem(&disablebpf_map, &k);
         if (!val)
-		return 0;
+                return 0;
 
         blocked = *val;
         if (blocked == BPFLOCK_BPF_DENY)
                 return -EACCES;
         else if (blocked == BPFLOCK_BPF_ALLOW)
-		return 0;
+                return 0;
 
         /* If restrict and not in init namespace deny access */
         if (!is_init_mnt_ns())
@@ -123,10 +123,10 @@ int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
                 k = BPFLOCK_BPF_OP;
 
                 /*
-		   Check if a list of blocked operations was set,
-		   if not then allow BPF commands.
-		   This covers both restrict and allow permissions.
-		 */
+                 * Check if a list of blocked operations was set,
+                 * if not then allow BPF commands.
+                 * This covers both restrict and allow permissions.
+                 */
                 val = bpf_map_lookup_elem(&disablebpf_map, &k);
                 if (!val)
                         return 0;
