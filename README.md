@@ -245,7 +245,7 @@ git clone --recurse-submodules https://github.com/linux-lock/bpflock
 
 ### 4.2 kernel
 
-Tested on a kernel +5.11 with the following options:
+Tested on a kernel 5.14 with the following options:
 
 ```code
 CONFIG_DEBUG_INFO=y
