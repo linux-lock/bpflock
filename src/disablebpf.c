@@ -188,17 +188,6 @@ static int setup_bpf_env_map(struct disablebpf_bpf *skel, int *fd)
 
         *fd = f;
 
-        if (stat(DISABLEBPF_NS_MAP_PIN, &st) == 0)
-                return 0;
-
-        err = bpf_map__pin(skel->maps.disablebpf_ns_map, DISABLEBPF_NS_MAP_PIN);
-        if (err < 0) {
-                fprintf(stderr, "%s: error: failed to pin ns map: %d\n",
-                        LOG_BPFLOCK, err);
-                return err;
-        }
-
-
         return err;
 }
 
@@ -281,6 +270,9 @@ int main(int argc, char **argv)
                         LOG_BPFLOCK, err);
                 goto cleanup;
         }
+
+        mkdir(BPFLOCK_PIN_PATH, 0700);
+        mkdir(bpf_security_map.pin_path, 0700);
 
         err = bpf_object__pin(skel->obj, bpf_security_map.pin_path);
         if (err) {
