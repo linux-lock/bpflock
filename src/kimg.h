@@ -24,7 +24,7 @@ enum bpflock_bpf_perm_flag {
 };
 
 struct bpflock_class_map kimg_security_map = {
-        "bpf",
+        "kernel image lock down",
         "/sys/fs/bpf/bpflock/kimg",
         { NULL },
         { 0 }
