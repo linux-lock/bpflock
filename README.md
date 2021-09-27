@@ -78,7 +78,6 @@ It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_l
 
 kimg will restrict or block access to the following features:
 
-  - Automatic loading of kernel modules. This will block users (or attackers) from auto-loading modules. Unprivileged code will not be able to load "vulnerable" modules, however it is not effective against code running with root privileges, where it is able to load modules explicitly.  
   - Loading of unsigned modules.
   - Unsafe usage of module parameters.
   - Access to `/dev/mem, /dev/kmem and /dev/port`.
@@ -109,9 +108,8 @@ kimg supports the following options:
    If in restrict mode, then the integrity mode of kernel lock down will be enforced for all processes that are not in the initial mnt namespace, and [kernel features](https://github.com/linux-lock/bpflock#311-kimg-options) to modify the running kernel are blocked.
 
  * Special access exceptions:
-   If running under `restrict` permission model, then a coma-separated list of allowed features can be specified:
+   If running under `restrict` permission model, then a coma-separated list of allowed features for all processes can be specified:
    - `unsigned_module` : allow unsigned module loading.
-   - `autoload_module` : allow automatic module loading.
    - `unsafe_module_parameters` : allow module parameters that directly specify hardware
          parameters to drivers 
    - `dev_mem` : access to /dev/{mem,kmem,port} is allowed.
@@ -144,14 +142,15 @@ Examples:
   sudo kimg -p restrict
   ```
 
-* Restrict mode, disable all direct and indirect access, but allow only bpf writes to user RAM from processes in the initial mnt namespace:
+* Restrict mode, access is allowed only for processes in the initial mnt namespace, and is blocked for the rest, with an exception to bpf writes to user RAM operations:
   ```bash
   sudo kimg -p restrict -a bpf_write
   ``` 
 
-* Restrict mode, disable all and allow debugfs, ioport and unsigned module loading from processes in the initial mnt namespace: 
+* Restrict mode, access is allowed only for processes in the initial mnt namespace, and is blocked for the rest, with an exception to debugfs, raw I/O port and loading of unsigned modules:
   ```bash
-  sudo kimg -p restrict -a debugfs,ioport,unsigned_module
+  sudo kimg -p restrict \
+    -a debugfs,ioport,unsigned_module
   ``` 
 
 To disable this program delete the directory and all its pinned content `/sys/fs/bpf/bpflock/kimg`. Re-executing will enable it again.
