@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 
+/*
+ * Copyright (C) 2021 Djalal Harouni
+ */
+
 #ifndef __BPFLOCK_UTILS_H
 #define __BPFLOCK_UTILS_H
 
@@ -8,6 +12,7 @@
 #define LOG_BPFLOCK "bpflock"
 
 #define LSM_BPF_PATH            "/sys/kernel/security/lsm"
+#define BPFLOCK_PIN_PATH        "/sys/fs/bpf/bpflock/"
 #define BPFLOCK_NS_MAP_PIN      "/sys/fs/bpf/bpflock/ns_map"
 
 #define STRV_FOREACH_BACKWARDS(s, l)                                \
