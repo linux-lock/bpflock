@@ -3,14 +3,18 @@
 bpflock - eBPF driven security for locking and auditing Linux machines.
 
 
-## Work In Progress
-
-This is a Work In Progress:
+#### This is a Work In Progress:
 
 * BPF programs are being updated
 
 * Programs will be updated soon to use [Cilium ebpf library](https://github.com/cilium/ebpf/) and turned into a small daemon.
 
+## Sections
+
+* [1. Introduction](https://github.com/linux-lock/bpflock#1-introduction)
+* [2. Security design](https://github.com/linux-lock/bpflock#2-security-design)
+* [3. Protections](https://github.com/linux-lock/bpflock#3-protections)
+* [4. Build](https://github.com/linux-lock/bpflock#4-build)
 
 ## 1. Introduction
 
