@@ -226,10 +226,18 @@ To be added.
 To be added.
 
 
-## 4. Build and Dependencies
+## 4. Build
+
+First we need the right dependencies:
+
+* [libbpf](https://github.com/linux-lock/bpflock#41-libbpf)
+* [kernel version 5.14](https://github.com/linux-lock/bpflock#42-kernel)
+* [Libraries and compilers](https://github.com/linux-lock/bpflock#43-libraries-and-compilers)
+
+Follow [build documentation](https://github.com/linux-lock/bpflock#4.4-build) on how to build it.
 
 
-### 4.1 libbpf as git-submodule
+### 4.1 libbpf
 
 This repository uses libbpf as a git-submodule. After cloning this repository you need to run the command:
 
@@ -259,11 +267,10 @@ CONFIG_BPF_LSM=y
 
 * Ubuntu
   ```bash
-   sudo apt install -y bison build-essential flex git \
-        libllvm7 llvm-7-dev libclang-7-dev zlib1g-dev \
-        libelf-dev libfl-dev
+  sudo apt install -y bison build-essential flex \
+        git libllvm7 llvm-7-dev libclang-7-dev \
+        zlib1g-dev libelf-dev libfl-dev
   ```
-
 
 ### 4.4 Build
 
@@ -272,7 +279,7 @@ Get libbpf if not:
 git submodule update --init
 ```
 
-Build:
+To build just run:
 ```bash
 make
 ```
