@@ -5,8 +5,8 @@
  */
 
  /*
- * To disable this program, delete the pinned file "/sys/fs/bpf/bpflock/disable-bpf",
- * re-executing will enable it again.
+ * To disable this program, delete the directory "/sys/fs/bpf/bpflock/disable-bpf"
+ * and all its pinned content. Re-executing will enable it again.
  */
 
 #include <vmlinux.h>
@@ -75,26 +75,26 @@ int BPF_PROG(bpflock_disablebpf_bpf_write, enum lockdown_reason what, int ret)
 
         blocked = *val;
         if (blocked == BPFLOCK_BPF_DENY)
-                return -EACCES;
+                return -EPERM;
         else if (blocked == BPFLOCK_BPF_ALLOW)
                 return 0;
 
         /* If restrict and not in init namespace deny access */
         if (!is_init_mnt_ns())
-                return -EACCES;
+                return -EPERM;
 
         k = BPFLOCK_BPF_ALLOW_OP;
 
         /* If not found deny access */
         val = bpf_map_lookup_elem(&disablebpf_map, &k);
         if (!val)
-                return -EACCES;
+                return -EPERM;
 
         allowed = *val;
         if (allowed & BPFLOCK_BPF_WRITE)
                 return 0;
 
-        return -EACCES;
+        return -EPERM;
 }
 
 SEC("lsm/bpf")
@@ -114,11 +114,11 @@ int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
 
                 blocked = *val;
                 if (blocked == BPFLOCK_BPF_DENY)
-                        return -EACCES;
+                        return -EPERM;
 
                 /* If restrict and not in init namespace deny access */
                 if (blocked == BPFLOCK_BPF_RESTRICT && !is_init_mnt_ns())
-                        return -EACCES;
+                        return -EPERM;
 
                 k = BPFLOCK_BPF_OP;
 
@@ -149,7 +149,7 @@ int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
                 }
 
                 if (op_blocked)
-                        return -EACCES;
+                        return -EPERM;
 
         } else if (cmd == BPF_OBJ_PIN) {
                 pinned_bpf = 1;
