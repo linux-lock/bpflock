@@ -35,8 +35,7 @@ int pinned_bpf = 0;
 
 static __always_inline bool is_init_mnt_ns(void)
 {
-        struct task_struct *task;
-        struct nsproxy *nsp;
+        struct task_struct *current;
         struct bl_stat *st;
         unsigned long ino = 0;
         uint32_t k = 1;
@@ -49,56 +48,18 @@ static __always_inline bool is_init_mnt_ns(void)
         if (!st)
                 return false;
 
-        task = (struct task_struct *)bpf_get_current_task();
-        bpf_core_read(&nsp, sizeof(nsp), &task->nsproxy);
-        ino = BPF_CORE_READ(nsp, mnt_ns, ns.inum);
+        current = (struct task_struct *)bpf_get_current_task();
+        ino = BPF_CORE_READ(current, nsproxy, mnt_ns, ns.inum);
 
         /*
          * For now lets compare only ino which is the ns.inum
          * on proc.
          */
-        return ino == PROC_DYNAMIC_FIRST && ino == st->st_ino;
-}
-
-SEC("lsm/locked_down")
-int BPF_PROG(bpflock_disablebpf_bpf_write, enum lockdown_reason what, int ret)
-{
-        uint32_t *val, blocked = 0, allowed = 0;
-        uint32_t k = BPFLOCK_BPF_PERM;
-
-        if (ret != 0 || what != LOCKDOWN_BPF_WRITE_USER || !pinned_bpf)
-                return ret;
-
-        val = bpf_map_lookup_elem(&disablebpf_map, &k);
-        if (!val)
-                return 0;
-
-        blocked = *val;
-        if (blocked == BPFLOCK_BPF_DENY)
-                return -EPERM;
-        else if (blocked == BPFLOCK_BPF_ALLOW)
-                return 0;
-
-        /* If restrict and not in init namespace deny access */
-        if (!is_init_mnt_ns())
-                return -EPERM;
-
-        k = BPFLOCK_BPF_ALLOW_OP;
-
-        /* If not found deny access */
-        val = bpf_map_lookup_elem(&disablebpf_map, &k);
-        if (!val)
-                return -EPERM;
-
-        allowed = *val;
-        if (allowed & BPFLOCK_BPF_WRITE)
-                return 0;
-
-        return -EPERM;
+        return ino == (unsigned long)PROC_DYNAMIC_FIRST && ino == st->st_ino;
 }
 
 SEC("lsm/bpf")
-int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
+int BPF_PROG(disablebpf, int cmd, union bpf_attr *attr,
              unsigned int size, int ret)
 {
         uint32_t *val, blocked = 0, op_blocked = 0;
@@ -107,10 +68,10 @@ int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
         if (ret != 0)
                 return ret;
 
-        if (pinned_bpf) {
+        if (pinned_bpf == 2) {
                 val = bpf_map_lookup_elem(&disablebpf_map, &k);
                 if (!val)
-                        return 0;
+                        return ret;
 
                 blocked = *val;
                 if (blocked == BPFLOCK_BPF_DENY)
@@ -152,10 +113,50 @@ int BPF_PROG(bpflock_disablebpf, int cmd, union bpf_attr *attr,
                         return -EPERM;
 
         } else if (cmd == BPF_OBJ_PIN) {
-                pinned_bpf = 1;
+                pinned_bpf += 1;
         }
 
         return ret;
+}
+
+SEC("lsm/locked_down")
+int BPF_PROG(disablebpf_bpf_write, enum lockdown_reason what, int ret)
+{
+        uint32_t *val, blocked = 0;
+        uint32_t k = BPFLOCK_BPF_PERM;
+
+        bpf_printk("lockdown security: %d\n", pinned_bpf);
+
+        if (ret != 0 )
+                return ret;
+
+        if (what != LOCKDOWN_BPF_WRITE_USER || pinned_bpf != 2)
+                return ret;
+
+        val = bpf_map_lookup_elem(&disablebpf_map, &k);
+        if (!val)
+                return ret;
+
+        blocked = *val;
+        if (blocked == BPFLOCK_BPF_DENY)
+                return -EPERM;
+
+        /* If restrict and not in init namespace, then deny access */
+        if (blocked == BPFLOCK_BPF_RESTRICT && !is_init_mnt_ns())
+                return -EPERM;
+
+        k = BPFLOCK_BPF_OP;
+
+        /* If not block access is not found then allow */
+        val = bpf_map_lookup_elem(&disablebpf_map, &k);
+        if (!val)
+                return 0;
+
+        blocked = *val;
+        if (blocked & BPFLOCK_BPF_WRITE)
+                return -EPERM;
+
+        return 0;
 }
 
 static const char _license[] SEC("license") = "GPL";
