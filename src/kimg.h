@@ -39,6 +39,13 @@ struct bpflock_class_map kimg_security_map = {
         { 0 }
 };
 
+struct bpflock_class_prog_link bpf_prog_links[] = {
+        {
+                "bpflock_kimg_lockdown",
+                "/sys/fs/bpf/bpflock/kimg/kimg_lockdown_link",
+        },
+};
+
 /* End of kimg security class */
 
 
