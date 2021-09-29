@@ -76,7 +76,7 @@ It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_l
 
 **Note: this is still a moving target. Options are not stable**.
 
-kimg will restrict or block access to the following features:
+kimg will allow access to the following features only from processes in the initial mnt namespace:
 
   - Loading of unsigned modules.
   - Unsafe usage of module parameters.
@@ -108,7 +108,7 @@ kimg supports the following options:
    If in restrict mode, then the integrity mode of kernel lock down will be enforced for all processes that are not in the initial mnt namespace, and [kernel features](https://github.com/linux-lock/bpflock#311-kimg-options) to modify the running kernel are blocked.
 
  * Special access exceptions:
-   If running under `restrict` permission model, then a coma-separated list of allowed features for all processes can be specified:
+   If running under `restrict` permission model, then a coma-separated list of allowed features for the rest of processes that are not in the initial mnt namespace can be specified:
    - `unsigned_module` : allow unsigned module loading.
    - `unsafe_module_parameters` : allow module parameters that directly specify hardware
          parameters to drivers 
