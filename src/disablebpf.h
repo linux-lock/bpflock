@@ -36,6 +36,17 @@ struct bpflock_class_map bpf_security_map = {
         { 0 }
 };
 
+struct bpflock_class_prog_link bpf_prog_links[] = {
+        {
+                "bpflock_disablebpf",
+                "/sys/fs/bpf/bpflock/disable-bpf/disablebpf_link",
+        },
+        {
+                "bpflock_disablebpf_bpf_write",
+                "/sys/fs/bpf/bpflock/disable-bpf/disablebpf_bpf_write_link",
+        },
+};
+
 /* End of bpf security class */
 
 
