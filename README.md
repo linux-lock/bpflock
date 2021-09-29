@@ -99,7 +99,7 @@ kimg will restrict or block access to the following features:
 kimg supports the following options:
 
  * Permission:
-    - allow|none: kimg is disabled. All access is allowed.
+    - allow|none: kernel image access is allowed.
     - deny: direct and indirect access to a running kernel image is denied for all processes and containers.
     - restrict: access is allowed only from processes that are in the initial mnt namespace. This allows systemd and container managers to
     properly setup the working environment or communicate with hardware. Default permission. 
@@ -126,12 +126,12 @@ kimg supports the following options:
 
 Examples:
 
-* Deny direct and indirect access for all processes:
+* Deny direct and indirect access to a running kernel image for all processes:
   ```bash
   sudo kimg -p deny
   ```
 
-* All access is allowed:
+* kernel image access is allowed:
   ```bash
   sudo kimg -p none
   ```
@@ -142,12 +142,13 @@ Examples:
   sudo kimg -p restrict
   ```
 
-* Restrict mode, access is allowed only for processes in the initial mnt namespace, and is blocked for the rest, with an exception to bpf writes to user RAM operations:
+* Restrict mode, access is allowed only for processes in the initial mnt namespace. Access from all other processes is denied, with an exception to allow only the bpf writes to user RAM operation:
+
   ```bash
   sudo kimg -p restrict -a bpf_write
   ``` 
 
-* Restrict mode, access is allowed only for processes in the initial mnt namespace, and is blocked for the rest, with an exception to debugfs, raw I/O port and loading of unsigned modules:
+* Restrict mode, access is allowed only for processes in the initial mnt namespace, Access from all other processes is denied, with exceptions to access debugfs, raw I/O port and loading of unsigned modules operations:
   ```bash
   sudo kimg -p restrict \
     -a debugfs,ioport,unsigned_module
