@@ -178,12 +178,10 @@ It supports following options:
     - `deny`: bpf syscall and all its commands are denied for all processes on the system.
     - `restrict`: bpf is allowed only from processes that are in the initial mnt namespace. This allows systemd or container managers to properly use bpf. Default value.
 
- * Command to allow in case permission is `restrict`:
-    - `bpf_write`: allow bpf_probe_write_user() helper that can be used to override user space memory. By default it is blocked.
-
  * Comma-separated list of commands to block in case permission is `restrict` or `allow`:
-    - `map_create`: block creation of bpf maps.
+    - `bpf_write`: block bpf_probe_write_user() helper that can be used to override user space memory. By default it is blocked.
     - `btf_load`: block loading BPF Type Format (BTF) metadata into the kernel.
+    - `map_create`: block creation of bpf maps.
     - `prog_load`: block loading bpf programs.
     - All other commands are allowed by default.
     
@@ -212,9 +210,9 @@ Examples:
   sudo disablebpf -p restrict -b btf_load
   ```
 
-* Restrict mode, BPF access is allowed only from processes in the initial mnt namespace. The bpf_probe_write_user() helper to write user RAM is also explicitly allowed from the initial mnt namespace only:
+* Restrict mode, BPF access is allowed only from processes in the initial mnt namespace, but bpf_probe_write_user() helper to write user RAM is blocked:
   ```bash
-  sudo disablebpf -p restrict -a bpf_write
+  sudo disablebpf -p restrict -b bpf_write
   ```
 
 Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. For containers workload to disable this program, delete the directory `/sys/fs/bpf/bpflock/disable-bpf` and all its pinned content. Re-executing will enable it again.
