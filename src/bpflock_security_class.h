@@ -14,4 +14,9 @@ struct bpflock_class_map {
         const int32_t perms_int[sizeof(unsigned) * 8 + 1];
 };
 
+struct bpflock_class_prog_link {
+        const char *name;
+        const char *link;
+};
+
 #endif /* __BPFLOCK_SECURITY_CLASS_H */
