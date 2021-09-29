@@ -24,10 +24,8 @@
 static struct options {
         int perm_int;
         int block_op_int;
-        int allow_op_int;
         char *perm;
         char *block_op;
-        char *allow_op;
 } opt = {};
 
 const char *argp_program_version = "disablebpf 0.1";
@@ -36,7 +34,7 @@ const char *argp_program_bug_address =
 const char argp_program_doc[] =
 "bpflock disablebpf - restrict access to BPF system call.\n"
 "\n"
-"USAGE: disablebpf [--help] [-p PERM] [-a CMD] [-b CMD]\n"
+"USAGE: disablebpf [--help] [-p PERM] [-b CMD]\n"
 "\n"
 "EXAMPLES:\n"
 "  # BPF is allowed.\n"
@@ -51,9 +49,8 @@ const char argp_program_doc[] =
 "  disablebpf -p deny\n";
 
 static const struct argp_option opts[] = {
-        { "allow", 'a', "CMD", 0, "Allow BPF commands, possible values: 'bpf_write' " },
         { "permission", 'p', "PERM", 0, "Permission to apply, one of the following: allow, restrict or deny. Default value is: restrict." },
-        { "block", 'b', "CMD", 0, "Block BPF commands, possible values: 'map_create, prog_load, btf_load' " },
+        { "block", 'b', "CMD", 0, "Block BPF commands, possible values: 'map_create, prog_load, btf_load, bpf_write' " },
         { NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
         {},
 };
@@ -63,13 +60,6 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
         switch (key) {
         case 'h':
                 argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
-                break;
-        case 'a':
-                if (strlen(arg) + 1 > 128) {
-                        fprintf(stderr, "invalid -a|--allow argument: too long\n");
-                        argp_usage(state);
-                }
-                opt.allow_op = strndup(arg, strlen(arg));
                 break;
         case 'b':
                 if (strlen(arg) + 1 > 128) {
@@ -116,20 +106,21 @@ static int setup_bpf_opt_map(struct disablebpf_bpf *skel, int *fd)
                         opt.perm_int = BPFLOCK_BPF_DENY;
                 } else if (strncmp(opt.perm, "restrict", 8) == 0) {
                         opt.perm_int = BPFLOCK_BPF_RESTRICT;
-                        if (strstr(opt.block_op, "map_create") != NULL)
-                                opt.block_op_int |= BPFLOCK_MAP_CREATE;
-                        if (strstr(opt.block_op, "prog_load") != NULL)
-                                opt.block_op_int |= BPFLOCK_PROG_LOAD;
-                        if (strstr(opt.block_op, "btf_load") != NULL)
-                                opt.block_op_int |= BPFLOCK_BTF_LOAD;
-
-                        if (strstr(opt.allow_op, "bpf_write") != NULL)
-                                opt.allow_op_int |= BPFLOCK_BPF_WRITE;
-
                 } else if (strncmp(opt.perm, "allow", 5) == 0 ||
                            strncmp(opt.perm, "none", 4) == 0) {
                         opt.perm_int = BPFLOCK_BPF_ALLOW;
                 }
+        }
+
+        if (opt.block_op) {
+                if (strstr(opt.block_op, "map_create") != NULL)
+                        opt.block_op_int |= BPFLOCK_MAP_CREATE;
+                if (strstr(opt.block_op, "prog_load") != NULL)
+                        opt.block_op_int |= BPFLOCK_PROG_LOAD;
+                if (strstr(opt.block_op, "btf_load") != NULL)
+                        opt.block_op_int |= BPFLOCK_BTF_LOAD;
+                if (strstr(opt.block_op, "bpf_write") != NULL)
+                        opt.block_op_int |= BPFLOCK_BPF_WRITE;
         }
 
         *fd = f;
@@ -137,10 +128,6 @@ static int setup_bpf_opt_map(struct disablebpf_bpf *skel, int *fd)
         bpf_map_update_elem(f, &perm_k, &opt.perm_int, BPF_ANY);
         if (opt.block_op_int > 0)
                 bpf_map_update_elem(f, &op_k, &opt.block_op_int, BPF_ANY);
-
-        op_k = BPFLOCK_BPF_ALLOW_OP;
-        if (opt.allow_op_int > 0)
-                bpf_map_update_elem(f, &op_k, &opt.allow_op_int, BPF_ANY);
 
         return 0;
 }
