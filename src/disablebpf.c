@@ -205,7 +205,7 @@ int main(int argc, char **argv)
         int disablebpf_map_fd = -1, ns_map_fd = -1;
         struct stat st;
         char *buf = NULL;
-        int err;
+        int err, i;
 
         err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
         if (err)
@@ -282,6 +282,27 @@ int main(int argc, char **argv)
                 goto cleanup;
         }
 
+        i = 0;
+        bpf_object__for_each_program(prog, skel->obj) {
+                link = bpf_program__attach(prog);
+                err = libbpf_get_error(link);
+                if (err) {
+                        libbpf_strerror(err, buf, sizeof(buf));
+                        fprintf(stderr, "%s: error: failed to attach BPF programs: %s\n",
+                                LOG_BPFLOCK, strerror(-err));
+                        goto cleanup;
+                }
+
+                err = bpf_link__pin(link, bpf_prog_links[i].link);
+                if (err) {
+                        libbpf_strerror(err, buf, sizeof(buf));
+                        fprintf(stderr, "%s: error: failed to pin bpf obj into '%s'\n",
+                                LOG_BPFLOCK, buf);
+                        goto cleanup;
+                }
+                i++;
+        }
+
         if (opt.perm_int == BPFLOCK_BPF_DENY) {
                 printf("%s: success: The bpf() syscall is now disabled - delete pinned file '%s' to re-enable\n",
                         LOG_BPFLOCK, bpf_security_map.pin_path);
@@ -296,6 +317,7 @@ int main(int argc, char **argv)
 cleanup:
         if (link)
                 bpf_link__destroy(link);
+
         if (skel)
                 disablebpf_bpf__destroy(skel);
 
