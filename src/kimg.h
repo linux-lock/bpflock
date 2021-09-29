@@ -12,10 +12,19 @@
 
 /* kimg security class */
 
+#define LOG_KIMG "kimg"
+
 #define BPFLOCK_KI_PERM        1
 #define BPFLOCK_KI_ALLOW_OP    256
 
 #define KIMG_NS_MAP_PIN      "/sys/fs/bpf/bpflock/kimg_ns_map"
+
+enum ki_reason {
+        kireason_allow                  = 1,    /* Allow */
+        kireason_allow_exception,               /* Restrict but allow with exception */
+        kireason_restrict,                      /* Restrict */
+        kireason_deny,                          /* Deny */
+};
 
 enum bpflock_bpf_perm_flag {
         BPFLOCK_KI_ALLOW       = 1,
