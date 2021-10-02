@@ -179,7 +179,7 @@ It supports following options:
     - `restrict`: bpf is allowed only from processes that are in the initial mnt namespace. This allows systemd or container managers to properly use bpf. Default value.
 
  * Comma-separated list of commands to block in case permission is `restrict` or `allow`:
-    - `bpf_write`: block bpf_probe_write_user() helper that can be used to override user space memory. By default it is blocked.
+    - `bpf_write`: block bpf_probe_write_user() helper that can be used to override user space memory.
     - `btf_load`: block loading BPF Type Format (BTF) metadata into the kernel.
     - `map_create`: block creation of bpf maps.
     - `prog_load`: block loading bpf programs.
