@@ -18,9 +18,9 @@ bpflock - eBPF driven security for locking and auditing Linux machines.
 
 ## 1. Introduction
 
-bpflock is designed to work along side systemd or container managers to protect Linux machines using a system wide approach. It can be used on kubernetes deployments, servers, Linux-IoT devices, and work stations.
+bpflock is designed to work along side, init programs, systemd or container managers to protect Linux machines using a system wide approach. It can be used on kubernetes deployments, servers, Linux-IoT devices, and work stations.
 
-bpflock combines multiple bpf programs to sandbox tasks and containers, only services like systemd or container managers that run in the initial [mnt namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access all Linux kernel features, other tasks including containers that run on their own namespaces will be
+bpflock combines multiple bpf programs to sandbox tasks and containers, only services like init, systemd or container managers that run in the initial [mnt namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access all Linux kernel features, other tasks including containers that run on their own namespaces will be
 restricted or completely blocked.
 
 To read more about Linux namespaces: [Linux namespaces man pages](https://man7.org/linux/man-pages/man7/namespaces.7.html).
@@ -55,7 +55,7 @@ The semantic of all programs is:
 * Permission: each program supports three different permission models.
   - `allow|none`: access is allowed.
   - `deny`: access is denied for all processes.
-  - `restrict`: access is allowed only from processes that are in the initial mnt and other namespaces. This allows systemd and container managers to properly access all functionality.
+  - `restrict`: access is allowed only from processes that are in the initial mnt and other namespaces. This allows init, systemd and container managers to properly access all functionality.
 
 
 * Allowed or blocked operations/commands:
@@ -70,13 +70,13 @@ The semantic of all programs is:
 
 #### 3.1.1 kernel image lock down
 
-kimg - kernel image implements restrictions to prevent both direct and indirect access to a running kernel image.
+kimg - kernel image implements restrictions to prevent both direct and indirect access to a running kernel image, attempting to protect against unauthorized modification.
 
 It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) features and other Linux Security Module hooks to protect against unauthorized modification of the kernel image.
 
 **Note: this is still a moving target. Options are not stable**.
 
-kimg will allow access to the following features only from processes in the initial mnt namespace:
+By default `kimg` will allow access to the following features only from processes in the initial [mnt namespace](https://man7.org/linux/man-pages/man7/mount_namespaces.7.html):
 
   - Loading of unsigned modules.
   - Unsafe usage of module parameters.
@@ -96,13 +96,13 @@ kimg will allow access to the following features only from processes in the init
   - bpf writes to user RAM.
 
 
-kimg supports the following options:
+`kimg` supports the following options:
 
  * Permission:
     - allow|none: kernel image access is allowed.
     - deny: direct and indirect access to a running kernel image is denied for all processes and containers.
-    - restrict: access is allowed only from processes that are in the initial mnt namespace. This allows systemd and container managers to
-    properly setup the working environment or communicate with hardware. Default permission. 
+    - restrict: access is allowed only from processes that are in the initial mnt namespace. This allows, init programs, systemd and container managers to
+    properly setup the working environment and communicate with the correspondig hardware. Default permission. 
 
  * Blocked access:
    If in restrict mode, then the integrity mode of kernel lock down will be enforced for all processes that are not in the initial mnt namespace, and [kernel features](https://github.com/linux-lock/bpflock#311-kimg-options) to modify the running kernel are blocked.
@@ -176,7 +176,7 @@ It supports following options:
  * Permission:
     - `allow|none`: bpf is allowed.
     - `deny`: bpf syscall and all its commands are denied for all processes on the system.
-    - `restrict`: bpf is allowed only from processes that are in the initial mnt namespace. This allows systemd or container managers to properly use bpf. Default value.
+    - `restrict`: bpf is allowed only from processes that are in the initial mnt namespace. This allows init, systemd or container managers to properly set up bpf. Default value.
 
  * Comma-separated list of commands to block in case permission is `restrict` or `allow`:
     - `bpf_write`: block bpf_probe_write_user() helper that can be used to override user space memory.
