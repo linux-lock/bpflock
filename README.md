@@ -16,6 +16,7 @@ bpflock - eBPF driven security for locking and auditing Linux machines.
 * [3. Protections](https://github.com/linux-lock/bpflock#3-protections)
 * [4. Build](https://github.com/linux-lock/bpflock#4-build)
 
+
 ## 1. Introduction
 
 bpflock is designed to work along side, init programs, systemd or container managers to protect Linux machines using a system wide approach. It can be used on kubernetes deployments, servers, Linux-IoT devices, and work stations.
@@ -157,12 +158,60 @@ To disable this program delete the directory and all its pinned content `/sys/fs
 
 #### 3.1.2 Kernel modules protections
 
-kmodules - implements restrictions to control module load and unload operations on modular kernels. It will allow to restrict or block access to:
+`disablemodules` implements restrictions to control module load and unload operations on modular kernels. It will allow to restrict or block access to:
 
   - Explicit module loading.
   - Loading of unsigned modules.
   - Automatic loading of kernel modules. This will block users (or attackers) from auto-loading modules. Unprivileged code will not be able to load "vulnerable" modules in this case. 
   - Unsafe usage of module parameters.
+
+`disablemodules` supports the following options:
+
+ * Permission:
+   - `allow|none`: load and unload module operations are allowed.
+   - `deny`: all operations of loading and unloading modules are denied for all processes on the system.
+   - `restrict`: load and unload modules are allowed only from processes that are in the initial mnt namespace. This allows init, systemd or container managers to properly set up the system. Default value.
+
+ * In case permission model is `restrict` or `allow`, a comma-separated list of operations to block for the processes according to the permission model can be specified:
+   - `load_module`: block module loading.
+   - `unload_module`: block module unloading.
+   - `autoload_module`: block automatic module loading.
+   - `unsigned_module` : block unsigned module loading.
+   - `unsafe_module_parameters` : block module parameters that directly specify hardware.
+         parameters to drivers.
+
+   If the list of operations to block is not set, then all operations are allowed.
+
+
+Examples:
+
+* Deny load and unload modules for all processes:
+  ```bash
+  sudo disablemodules -p deny
+  ```
+
+* Allow load and unload of kernel modules:
+  ```bash
+  sudo disablemodules -p none
+  ```
+
+* Restrict mode, module operations are allowed only from processes in the initial mnt namespace:
+  ```bash
+  sudo disablemodules
+  sudo disablemodules -p restrict
+  ```
+
+* Restrict mode, module operations are allowed only from processes in the initial mnt namespace, but loading of unsigned modules is blocked:
+  ```bash
+  sudo disablebpf -p restrict -b unsigned_module
+  ```
+
+* Restrict mode, module operations are allowed only from processes in the initial mnt namespace, but automatic module loading is blocked for all:
+  ```bash
+  sudo disablebpf -p restrict -b autoload_module
+  ```
+
+For containers workload to disable this program, delete the directory `/sys/fs/bpf/bpflock/disable-modules` and all its pinned content. Re-executing will enable it again.
 
 
 #### 3.1.4 BPF protection
