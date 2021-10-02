@@ -68,11 +68,9 @@ The semantic of all programs is:
 
 ### 3.1 Memory protections
 
-#### 3.1.1 kernel image lock down
+#### 3.1.1 kernel image lockdown
 
-kimg - kernel image implements restrictions to prevent both direct and indirect access to a running kernel image, attempting to protect against unauthorized modification.
-
-It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) features and other Linux Security Module hooks to protect against unauthorized modification of the kernel image.
+kimg - kernel image implements restrictions to prevent both direct and indirect access to a running kernel image, attempting to protect against unauthorized modification. It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) features and other Linux Security Module hooks to protect against unauthorized modification of the kernel image.
 
 **Note: this is still a moving target. Options are not stable**.
 
@@ -105,7 +103,7 @@ By default `kimg` will allow access to the following features only from processe
     properly setup the working environment and communicate with the correspondig hardware. Default permission. 
 
  * Blocked access:
-   If in restrict mode, then the integrity mode of kernel lock down will be enforced for all processes that are not in the initial mnt namespace, and [kernel features](https://github.com/linux-lock/bpflock#311-kimg-options) to modify the running kernel are blocked.
+   If in restrict mode, then the integrity mode of kernel lock down will be enforced for all processes that are not in the initial mnt namespace, and [kernel features](https://github.com/linux-lock/bpflock#311-kernel-image-lockdown) to modify the running kernel are blocked.
 
  * Special access exceptions:
    If running under `restrict` permission model, then a coma-separated list of allowed features for the rest of processes that are not in the initial mnt namespace can be specified:
