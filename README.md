@@ -5,7 +5,7 @@ bpflock - eBPF driven security for locking and auditing Linux machines.
 
 #### This is a Work In Progress:
 
-* BPF programs are being updated
+* bpflock is currently in experimental stage and some BPF programs are being updated.
 
 * Programs will be updated soon to use [Cilium ebpf library](https://github.com/cilium/ebpf/) and turned into a small daemon.
 
@@ -31,6 +31,9 @@ bpflock uses [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html) 
 ## 2. Security concepts
 
 bpflock bpf programs are separated by security functionality, where each program can be launched independently without interfering with the rest. Combined together they allow to restrict or block the access to a wide range of Linux kernel features.
+
+**Note: bpflock is able to restrict root access to some features, however it does not protect against evil root users. Such users are able to disable bpflock if `/sys` file system is writable.**
+
 
 ### 2.1 Security features
 
@@ -149,7 +152,7 @@ devices or servers, and have remote access where you control when to activate
 or deactivate those same USB interfaces.**
 
 **Of course protecting machines from attackers
-with unlimited physicall access and able to perform different scenarios is a lost
+with unlimited physicall access that allows to perform different scenarios is a lost
 case.**
 
 
