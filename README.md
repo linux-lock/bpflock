@@ -43,7 +43,7 @@ bpflock bpf programs are separated by security functionality, where each program
 
 * [Memory protections](https://github.com/linux-lock/bpflock#42-memory-protections)
 
-  - [Kernel image lock down](https://github.com/linux-lock/bpflock#421-kernel-image-lock-down)
+  - [Kernel image lock down](https://github.com/linux-lock/bpflock#421-kernel-image-lockdown)
   - [Kernel modules protection](https://github.com/linux-lock/bpflock#422-kernel-modules-protections)
   - [BPF protection](https://github.com/linux-lock/bpflock#423-bpf-protection)
   - [Execution of In-Memory-Only ELF binaries (memfd)](https://github.com/linux-lock/bpflock#424-execution-of-in-memory-only-elf-binaries)
@@ -315,7 +315,7 @@ For containers workload to disable this program, delete the directory `/sys/fs/b
 
 #### 4.2.3 BPF protection
 
-disablebpf implements access restrictions on bpf syscall.
+`disablebpf` - implements access restrictions on [bpf syscall](https://man7.org/linux/man-pages/man2/bpf.2.html).
 
 It supports following options:
 
@@ -325,7 +325,7 @@ It supports following options:
     - `restrict`: bpf is allowed only from processes that are in the initial mnt namespace. This allows init, systemd or container managers to properly set up bpf. Default value.
 
  * Comma-separated list of commands to block in case permission is `restrict` or `allow`:
-    - `bpf_write`: block bpf_probe_write_user() helper that can be used to override user space memory.
+    - `bpf_write`: block `bpf_probe_write_user()` helper that is used to write to user space memory.
     - `btf_load`: block loading BPF Type Format (BTF) metadata into the kernel.
     - `map_create`: block creation of bpf maps.
     - `prog_load`: block loading bpf programs.
