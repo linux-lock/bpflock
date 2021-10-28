@@ -140,15 +140,16 @@ Current build process was inspired by: https://github.com/iovisor/bcc/tree/maste
 
 `usblock` - Implements restrictions to lock-down USB devices.
 When connecting a USB device it will be shown on the system but not
-authorized to be used. This allows to **restrict** against some bad USB
-and poisontap attacks against IoT or servers that exploit locked or
-protected machines by emulating an Ethernet device over USB to hijack
-network traffic.
+authorized to be used, this allows to **restrict** some bad USB
+and poisontap attacks that emulate an Ethernet device over USB to
+hijack network traffic.
 
-**This is particulary useful if you do not trust your USB ports, and
-have remote access to your devices where you control when to activate or
-deactivate USB interfaces. Of course protecting machines where attackers
-with physicall access are able to perform different scenarios is a lost
+**This is particulary useful if you do not trust the USB ports of your IoT
+devices or servers, and have remote access where you control when to activate
+or deactivate those same USB interfaces.**
+
+**Of course protecting machines from attackers
+with unlimited physicall access and able to perform different scenarios is a lost
 case.**
 
 
