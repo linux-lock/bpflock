@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
+BUILD := $(abspath ./build/)
+BUILDLIBS := $(abspath ./build/libs/)
+BPFTOOL ?= $(abspath ./tools/bpftool)
+
+export BUILD BUILDLIBS BPFTOOL
+
 .PHONY: all clean
 all:
 	$(MAKE) -C ./src all

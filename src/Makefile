@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-OUTPUT := .output
+BUILD ?= $(abspath ../build/)
+BUILDLIBS ?= $(abspath ../build/libs/)
+BPFTOOL ?= $(abspath ../tools/bpftool)
 CLANG ?= clang
 LLVM_STRIP ?= llvm-strip
-BPFTOOL ?= ../bin/bpftool
 LIBBPF_SRC := $(abspath ./cc/libbpf/src)
-LIBBPF_OBJ := $(abspath $(OUTPUT)/libbpf.a)
-INCLUDES := -I$(OUTPUT) -I./cc/libbpf/include/uapi
+LIBBPF_OBJ := $(abspath $(BUILDLIBS)/libbpf.a)
+INCLUDES := -I$(BUILDLIBS) -I./cc/libbpf/include/uapi
 CFLAGS := -g -O2 -Wall
 INSTALL ?= install
 prefix ?= /usr/local
@@ -19,16 +20,17 @@ APPS = \
         kimg \
         disablemoduleautoload \
         disablebpf \
+        disablemodules \
         restrictfilesystems \
 	#
 
 COMMON_OBJ = \
-	$(OUTPUT)/trace_helpers.o \
-	$(OUTPUT)/syscall_helpers.o \
-	$(OUTPUT)/errno_helpers.o \
-	$(OUTPUT)/map_helpers.o \
-	$(OUTPUT)/uprobe_helpers.o \
-	$(OUTPUT)/bpflock_utils.o \
+	$(BUILDLIBS)/trace_helpers.o \
+	$(BUILDLIBS)/syscall_helpers.o \
+	$(BUILDLIBS)/errno_helpers.o \
+	$(BUILDLIBS)/map_helpers.o \
+	$(BUILDLIBS)/uprobe_helpers.o \
+	$(BUILDLIBS)/bpflock_utils.o \
 	#
 
 .PHONY: all
@@ -46,34 +48,34 @@ endif
 .PHONY: clean
 clean:
 	$(call msg,CLEAN)
-	$(Q)rm -rf $(OUTPUT) $(APPS)
+	$(Q)rm -rf $(BUILD) $(APPS)
 
-$(OUTPUT) $(OUTPUT)/libbpf:
+$(BUILDLIBS) $(BUILDLIBS)/libbpf:
 	$(call msg,MKDIR,$@)
 	$(Q)mkdir -p $@
 
-$(APPS): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) $(COMMON_OBJ) | $(OUTPUT)
+$(APPS): %: $(BUILDLIBS)/%.o $(LIBBPF_OBJ) $(COMMON_OBJ) | $(BUILDLIBS)
 	$(call msg,BINARY,$@)
-	$(Q)$(CC) $(CFLAGS) $^ $(LDFLAGS) -lelf -lz -o $@
+	$(Q)$(CC) $(CFLAGS) $^ $(LDFLAGS) -lelf -lz -o ${BUILD}/$@
 
-$(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
+$(patsubst %,$(BUILDLIBS)/%.o,$(APPS)): %.o: %.skel.h
 
-$(OUTPUT)/%.o: %.c $(wildcard %.h) $(LIBBPF_OBJ) | $(OUTPUT)
+$(BUILDLIBS)/%.o: %.c $(wildcard %.h) $(LIBBPF_OBJ) | $(BUILDLIBS)
 	$(call msg,CC,$@)
 	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
 
-$(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT)
+$(BUILDLIBS)/%.skel.h: $(BUILDLIBS)/%.bpf.o | $(BUILDLIBS)
 	$(call msg,GEN-SKEL,$@)
 	$(Q)$(BPFTOOL) gen skeleton $< > $@
 
-$(OUTPUT)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(ARCH)/vmlinux.h | $(OUTPUT)
+$(BUILDLIBS)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(ARCH)/vmlinux.h | $(BUILDLIBS)
 	$(call msg,BPF,$@)
 	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH)		      \
 		     -I$(ARCH)/ $(INCLUDES) -c $(filter %.c,$^) -o $@ &&      \
 	$(LLVM_STRIP) -g $@
 
 # Build libbpf.a
-$(LIBBPF_OBJ): $(wildcard $(LIBBPF_SRC)/*.[ch]) | $(OUTPUT)/libbpf
+$(LIBBPF_OBJ): $(wildcard $(LIBBPF_SRC)/*.[ch]) | $(BUILDLIBS)/libbpf
 	$(call msg,LIB,$@)
 	$(Q)$(MAKE) -C $(LIBBPF_SRC) BUILD_STATIC_ONLY=1		      \
 		    OBJDIR=$(dir $@)/libbpf DESTDIR=$(dir $@)		      \
