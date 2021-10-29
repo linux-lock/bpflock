@@ -181,11 +181,19 @@ int read_task_mnt_id(const char *path, struct stat *st)
         return 0;
 }
 
+int stat_sb_root(struct stat *st)
+{
+        if (stat("/", st) < 0)
+                return -errno;
+
+        return 0;
+}
+
 int pin_init_task_ns(int fd)
 {
         struct stat id;
         struct bl_stat bst;
-        uint32_t k = 1;
+        uint32_t k = BPFLOCK_NS_KEY;
         int ret;
 
         ret = read_task_mnt_id("/proc/1/ns/mnt", &id);

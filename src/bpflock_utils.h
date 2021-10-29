@@ -42,6 +42,7 @@ int readlink_value(const char *p, char **ret);
 int read_process_env(const char *path, char **ret);
 int read_task_ns_id(const char *path, unsigned long flag, unsigned int *ret_i);
 int read_task_mnt_id(const char *path, struct stat *st);
+int stat_sb_root(struct stat *st);
 int pin_init_task_ns(int fd);
 
 int is_lsmbpf_supported();
