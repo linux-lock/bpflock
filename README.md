@@ -1,62 +1,59 @@
-# bpflock - Lock Linux machines
+# `bpflock` - Lock Linux machines
 
-bpflock - eBPF driven security for locking and auditing Linux machines.
-
+`bpflock` - eBPF driven security for locking and auditing Linux machines.
 
 #### This is a Work In Progress:
 
-* bpflock is currently in experimental stage and some BPF programs are being updated.
+* `bpflock` is currently in experimental stage and some BPF programs are being updated.
 
 * Programs will be updated soon to use [Cilium ebpf library](https://github.com/cilium/ebpf/) and turned into a small daemon.
 
 ## Sections
 
 * [1. Introduction](https://github.com/linux-lock/bpflock#1-introduction)
-* [2. Security concepts](https://github.com/linux-lock/bpflock#2-security-concepts)
-* [3. Build](https://github.com/linux-lock/bpflock#3-build)
-* [4. Protections](https://github.com/linux-lock/bpflock#4-protections)
+  - [1.1 Security features](https://github.com/linux-lock/bpflock#11-security-features)
+  - [1.2 Semantics](https://github.com/linux-lock/bpflock#12-semantics)
+* [2. Build](https://github.com/linux-lock/bpflock#2-build)
+* [3. Security protections](https://github.com/linux-lock/bpflock#3-security-protections)
+  - [3.1 Hardware additions](https://github.com/linux-lock/bpflock#31-hardware-additions)
+  - [3.2 Memory protections](https://github.com/linux-lock/bpflock#32-memory-protections)
+  - [3.3 Filesystem protections](https://github.com/linux-lock/bpflock#33-filesystem-protections)
+  - [3.4 Namespaces protections](https://github.com/linux-lock/bpflock#34-namespaces-protections)
 
 
 ## 1. Introduction
 
-bpflock is designed to work along side, init programs, systemd or container managers to protect Linux machines using a system wide approach. The `"plan"` is to make it usable on kubernetes deployments, servers, Linux-IoT devices, and work stations.
+`bpflock` is designed to work along side, init programs, systemd or container managers to protect Linux machines using a system wide approach. The `"plan"` is to make it usable on kubernetes deployments, servers, Linux-IoT devices, and work stations.
 
-bpflock combines multiple bpf programs to sandbox tasks and containers, only services like init, systemd or container managers that run in the initial [mnt namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access all Linux kernel features, other tasks including containers that run on their own namespaces will be
+`bpflock` combines multiple bpf independent programs to restrict access to a wide range of Linux features, only services like init, systemd or container managers that run in the initial [mnt namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access all Linux kernel features, other tasks including containers that run on their own namespaces will be
 restricted or completely blocked.
 
-To read more about Linux namespaces: [Linux namespaces man pages](https://man7.org/linux/man-pages/man7/namespaces.7.html).
+`bpflock` uses [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html) to implement its security features.
 
-bpflock uses [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html) to implement its security features.
-
-## 2. Security concepts
-
-bpflock bpf programs are separated by security functionality, where each program can be launched independently without interfering with the rest. Combined together they allow to restrict or block the access to a wide range of Linux kernel features.
-
-**Note: bpflock is able to restrict root access to some features, however it does not protect against evil root users. Such users are able to disable bpflock if `/sys` file system is writable.**
+**Note: `bpflock` is able to restrict root access to some features, however it does not protect against evil root users. Such users are able to disable `bpflock` if `/sys` file system is writable.**
 
 
-### 2.1 Security features
+### 1.1 Security features
 
-* [Hardware additions](https://github.com/linux-lock/bpflock#41-hardware-additions)
+* [Hardware additions](https://github.com/linux-lock/bpflock#31-hardware-additions)
 
-  - [usblock](https://github.com/linux-lock/bpflock#411-usb-additions-protection)
+  - [usblock](https://github.com/linux-lock/bpflock#311-usb-additions-protection)
 
-* [Memory protections](https://github.com/linux-lock/bpflock#42-memory-protections)
+* [Memory protections](https://github.com/linux-lock/bpflock#32-memory-protections)
 
-  - [Kernel image lock down](https://github.com/linux-lock/bpflock#421-kernel-image-lockdown)
-  - [Kernel modules protection](https://github.com/linux-lock/bpflock#422-kernel-modules-protections)
-  - [BPF protection](https://github.com/linux-lock/bpflock#423-bpf-protection)
-  - [Execution of In-Memory-Only ELF binaries (memfd)](https://github.com/linux-lock/bpflock#424-execution-of-in-memory-only-elf-binaries)
+  - [Kernel image lock down](https://github.com/linux-lock/bpflock#321-kernel-image-lockdown)
+  - [Kernel modules protection](https://github.com/linux-lock/bpflock#322-kernel-modules-protections)
+  - [BPF protection](https://github.com/linux-lock/bpflock#323-bpf-protection)
+  - [Execution of In-Memory-Only ELF binaries (memfd)](https://github.com/linux-lock/bpflock#324-execution-of-in-memory-only-elf-binaries)
 
-* [Filesystem protections](https://github.com/linux-lock/bpflock#43-filesystem-protections)
+* [Filesystem protections](https://github.com/linux-lock/bpflock#33-filesystem-protections)
 
   - Read-only root filesystem protection
   - sysfs protection
 
-* [Namespaces protections](https://github.com/linux-lock/bpflock#44-namespaces-protections)
+* [Namespaces protections](https://github.com/linux-lock/bpflock#34-namespaces-protections)
 
-
-### 2.2 Semantics
+### 1.2 Semantics
 
 The semantic of all programs is:
 
@@ -72,18 +69,18 @@ The semantic of all programs is:
   - `block`: comma-separated list of blocked commands.
 
 
-## 3. Build
+## 2. Build
 
 First we need the right dependencies:
 
-* [libbpf](https://github.com/linux-lock/bpflock#41-libbpf)
-* [kernel version 5.14](https://github.com/linux-lock/bpflock#42-kernel)
-* [Libraries and compilers](https://github.com/linux-lock/bpflock#43-libraries-and-compilers)
+* [libbpf](https://github.com/linux-lock/bpflock#21-libbpf)
+* [kernel version 5.15](https://github.com/linux-lock/bpflock#22-kernel)
+* [Libraries and compilers](https://github.com/linux-lock/bpflock#23-libraries-and-compilers)
 
 Follow [build documentation](https://github.com/linux-lock/bpflock#4.4-build) on how to build it.
 
 
-### 3.1 libbpf
+### 2.1 libbpf
 
 This repository uses libbpf as a git-submodule. After cloning this repository you need to run the command:
 
@@ -97,7 +94,7 @@ If you want submodules to be part of the clone, you can use this command:
 git clone --recurse-submodules https://github.com/linux-lock/bpflock
 ```
 
-### 3.2 kernel
+### 2.2 kernel
 
 Tested on a kernel 5.15.0-rc5+ (will pin to 5.15 when released) with the following options:
 
@@ -109,7 +106,7 @@ CONFIG_LSM="...,bpf"
 CONFIG_BPF_LSM=y
 ```
 
-### 3.3 Other dependencies
+### 2.3 Other dependencies
 
 * Ubuntu
   ```bash
@@ -118,7 +115,7 @@ CONFIG_BPF_LSM=y
         zlib1g-dev libelf-dev libfl-dev
   ```
 
-### 3.4 Build
+### 2.4 Build
 
 Get libbpf if not:
 ```
@@ -135,11 +132,11 @@ All build binaries will be produced in `src/` directory.
 Current build process was inspired by: https://github.com/iovisor/bcc/tree/master/libbpf-tools
 
 
-## 4. Protections
+## 3. Protections
 
-### 4.1 Hardware additions
+### 3.1 Hardware additions
 
-#### 4.1.1 USB additions protection
+#### 3.1.1 USB additions protection
 
 `usblock` - Implements restrictions to lock-down USB devices.
 When connecting a USB device it will be shown on the system but not
@@ -147,22 +144,19 @@ authorized to be used, this allows to **restrict** some bad USB
 and poisontap attacks that emulate an Ethernet device over USB to
 hijack network traffic.
 
-**This is particulary useful if you do not trust the USB ports of your IoT
-devices or servers, and have remote access where you control when to activate
-or deactivate those same USB interfaces.**
-
-**Of course protecting machines from attackers
-with unlimited physicall access that allows to perform different scenarios is a lost
-case.**
-
-
 `usblock` supports blocking new USB devices at runtime without changing your
 machine configuration.
 
+**This is particulary useful if you do not trust the USB ports of your IoT
+devices or servers, and have remote access where you control when to activate or deactivate those same USB interfaces.**
 
-### 4.2 Memory protections
+**Note: protecting machines from attackers
+that have unlimited physicall access to perform different scenarios is a lost
+case.**
 
-#### 4.2.1 kernel image lockdown
+### 3.2 Memory protections
+
+#### 3.2.1 kernel image lockdown
 
 `kimg` - kernel image implements restrictions to prevent both direct and indirect access to a running kernel image, attempting to protect against unauthorized modification. It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) features and other Linux Security Module hooks to protect against unauthorized modification of the kernel image.
 
@@ -249,16 +243,18 @@ Examples:
 To disable this program delete the directory `/sys/fs/bpf/bpflock/kimg` and all its pinned content. Re-executing will enable it again.
 
 
-#### 4.2.2 Kernel modules protections
+#### 3.2.2 Kernel modules protections
 
-`disablemodules` implements restrictions to control module load and unload operations on modular kernels. It allows to restrict or block access to:
+`disablemodules` implements restrictions to control module load operations on modular kernels. It allows to restrict or block access to:
 
   - Explicit module loading.
   - Loading of unsigned modules.
   - Automatic loading of kernel modules. This will block users (or attackers) from auto-loading modules. Unprivileged code will not be able to load "vulnerable" modules in this case. 
   - Unsafe usage of module parameters.
 
-`disablemodules` can also be used to ensure that all kernel modules, firmware, etc that are loaded originate from the same root filesystem. Extra flags can be passed to ensure that such filesystem is: mounted read-only or either backed by a read-only device such as dm-verity, if not then the operation will be denied. Some of this functionality was inspired by [LoadPin LSM](https://www.kernel.org/doc/html/latest/admin-guide/LSM/LoadPin.html).  **Limitations: due to being an BPF program, it can miss some modules that have already been loaded before the bpf filesystem is mounted or the BPF program is inserted. Running this in early boot will minimize such cases.**
+`disablemodules` can also be used to ensure that all kernel modules, firmware, etc that are loaded originate from the same root filesystem. Extra flags can be passed to ensure that such filesystem is: mounted read-only or either backed by a read-only device such as dm-verity, if not then the operation will be denied. Some of this functionality was inspired by [LoadPin LSM](https://www.kernel.org/doc/html/latest/admin-guide/LSM/LoadPin.html).
+
+**Limitations: due to being an BPF program, it can miss some modules that have already been loaded before the bpf filesystem is mounted or the BPF program is inserted. Running this in early boot will minimize such cases.**
 
 `disablemodules` supports the following options:
 
@@ -313,7 +309,7 @@ Examples:
 For containers workload to disable this program, delete the directory `/sys/fs/bpf/bpflock/disable-modules` and all its pinned content. Re-executing will enable it again.
 
 
-#### 4.2.3 BPF protection
+#### 3.2.3 BPF protection
 
 `disablebpf` - implements access restrictions on [bpf syscall](https://man7.org/linux/man-pages/man2/bpf.2.html).
 
@@ -364,11 +360,11 @@ Examples:
 Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. For containers workload to disable this program, delete the directory `/sys/fs/bpf/bpflock/disable-bpf` and all its pinned content. Re-executing will enable it again.
 
 
-### 4.3 Filesystem protections
+### 3.3 Filesystem protections
 
 To be added.
 
 
-### 4.4 Namespaces protections
+### 3.4 Namespaces protections
 
 To be added.
