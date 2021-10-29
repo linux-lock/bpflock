@@ -7,6 +7,8 @@
 #ifndef __BPFLOCK_BPF_DEFS_H
 #define __BPFLOCK_BPF_DEFS_H
 
+#define BPFLOCK_NS_KEY  1
+
 #define PROC_DYNAMIC_FIRST 0xF0000000U
 
 struct bl_stat {
