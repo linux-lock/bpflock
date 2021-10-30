@@ -34,7 +34,7 @@ restricted or completely blocked.
 
   - [usblock](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
 
-* [Memory protections](https://github.com/linux-lock/bpfloc/tree/main/docs/memory-protections.md)
+* [Memory protections](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md)
 
   - [Kernel image lock down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down)
   - [Kernel modules protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
@@ -101,12 +101,14 @@ CONFIG_LSM="...,bpf"
 CONFIG_BPF_LSM=y
 ```
 
-### 2.3 Other dependencies
+### 2.3 Libraries and compilers
 
-* Ubuntu
+#### Ubuntu
+
+To build install the following packages:
   ```bash
   sudo apt install -y bison build-essential flex \
-        git libllvm7 llvm-7-dev libclang-7-dev \
+        git libllvm10 llvm-10-dev libclang-10-dev \
         zlib1g-dev libelf-dev libfl-dev
   ```
 
@@ -122,6 +124,6 @@ To build just run:
 make
 ```
 
-All build binaries will be produced in `src/` directory.
+All build binaries will be produced in `build/` directory.
 
 Current build process was inspired by: https://github.com/iovisor/bcc/tree/master/libbpf-tools
