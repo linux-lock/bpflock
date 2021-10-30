@@ -1,5 +1,13 @@
 # Memory Protections
 
+## Sections
+
+  1. [Kernel image lock-down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down)
+  2. [Kernel modules protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
+  3. [BPF protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection)
+  4. [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#4-execution-of-memory-elf-binaries)
+
+
 ## 1. Kernel Image lock-down
 
 ### 1.1 Introduction

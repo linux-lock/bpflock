@@ -11,9 +11,9 @@
 ## Sections
 
 * [1. Introduction](https://github.com/linux-lock/bpflock#1-introduction)
-  - [1.1 Security features](https://github.com/linux-lock/bpflock#11-security-features)
-  - [1.2 Semantics](https://github.com/linux-lock/bpflock#12-semantics)
-* [2. Build](https://github.com/linux-lock/bpflock#2-build)
+* [2 Security features](https://github.com/linux-lock/bpflock#2-security-features)
+  - [2.1 Semantics](https://github.com/linux-lock/bpflock#21-semantics)
+* [3. Build](https://github.com/linux-lock/bpflock#3-build)
 
 
 ## 1. Introduction
@@ -25,14 +25,16 @@ restricted or completely blocked.
 
 `bpflock` uses [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html) to implement its security features.
 
-**Note: `bpflock` is able to restrict root access to some features, however it does not protect against evil root users. Such users are able to disable `bpflock` if `/sys` file system is writable.**
+Note: `bpflock` is able to restrict root access to some features, however it does not protect against evil root users. Such users are able to disable `bpflock` if `/sys` file system is writable.
 
 
-### 1.1 Security features
+## 1.1 Security features
+
+`bpflock` bpf programs offer multiple security protections and are able to restrict access to the following features:
 
 * [Hardware additions](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md)
 
-  - [usblock](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
+  - [USB additions protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
 
 * [Memory protections](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md)
 
