@@ -12,8 +12,14 @@
 #define PROC_DYNAMIC_FIRST 0xF0000000U
 
 struct bl_stat {
-	unsigned long  st_dev;	/* Device.  */
-	unsigned long  st_ino;	/* File serial number.  */
+        unsigned long  st_dev;	/* Device.  */
+        unsigned long  st_ino;	/* File serial number.  */
+};
+
+struct sb_elem {
+        int freed;
+        struct super_block *sb_root;
+        struct bpf_spin_lock lock;
 };
 
 #endif /* __BPFLOCK_BPF_DEFS_H */
