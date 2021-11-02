@@ -4,24 +4,29 @@
  * Copyright (C) 2021 Djalal Harouni
  */
 
-#ifndef __BPFLOCK_KIMG_H
-#define __BPFLOCK_KIMG_H
+#ifndef __BPFLOCK_KMODLOCK_H
+#define __BPFLOCK_KMODLOCK_H
 
 #include "bpflock_security_class.h"
 #include "bpflock_bpf_defs.h"
 
-/* kernel modules security class */
+/* kmodlock security class */
 
-#define LOG_DISABLE_MODULES "disablemodules"
+#define LOG_DISABLE_MODULES "kmodlock"
 
-#define BPFLOCK_DM_PERM        1
-#define BPFLOCK_DM_OP          2
+#define BPFLOCK_KM_PERM        1
+#define BPFLOCK_KM_OP          2
 
-#define BPFLOCK_DM_LOAD         (1 << 0)
-#define BPFLOCK_DM_UNLOAD       (1 << 1)
-#define BPFLOCK_DM_AUTOLOAD     (1 << 2)
-#define BPFLOCK_DM_UNSIGNED     (1 << 3)
-#define BPFLOCK_DM_UNSAFEMOD    (1 << 4)
+#define BPFLOCK_KM_LOAD         (1 << 0)
+#define BPFLOCK_KM_UNLOAD       (1 << 1)
+#define BPFLOCK_KM_AUTOLOAD     (1 << 2)
+#define BPFLOCK_KM_UNSIGNED     (1 << 3)
+#define BPFLOCK_KM_UNSAFEMOD    (1 << 4)
+
+enum dm_env {
+        BPFLOCK_KM_NS           = BPFLOCK_NS_KEY,
+        BPFLOCK_KM_SB,
+};
 
 enum dm_reason {
         dmreason_allow                  = 1,    /* Allow */
@@ -30,35 +35,39 @@ enum dm_reason {
         dmreason_deny,                          /* Deny */
 };
 
-enum bpflock_disablemodules_perm_flag {
-        BPFLOCK_DM_ALLOW       = 1,
-        BPFLOCK_DM_RESTRICT,
-        BPFLOCK_DM_DENY,
+enum bpflock_dmodules_perm_flag {
+        BPFLOCK_KM_ALLOW       = 1,
+        BPFLOCK_KM_RESTRICT,
+        BPFLOCK_KM_DENY,
 };
 
 struct bpflock_class_map dmodules_security_map = {
-        "disable kernel modules",
-        "/sys/fs/bpf/bpflock/disable-modules/",
+        "kmodlock",
+        "/sys/fs/bpf/bpflock/kmodlock/",
         { NULL },
         { 0 }
 };
 
 struct bpflock_class_prog_link dmodules_prog_links[] = {
         {
-                "bpflock_disable_kernel_modules",
-                "/sys/fs/bpf/bpflock/disable-modules/disable_modules_link",
+                "kmodlock_autoload",
+                "/sys/fs/bpf/bpflock/kmodlock/kmodlock_autoload_link",
         },
         {
-                "bpflock_disable_kernel_modules_readfile",
-                "/sys/fs/bpf/bpflock/disable-modules/disable_modules_readfile_link",
+                "kmodlock_read_file",
+                "/sys/fs/bpf/bpflock/kmodlock/kmodlock_readfile_link",
         },
         {
-                "bpflock_disable_kernel_modules_lockdown",
-                "/sys/fs/bpf/bpflock/disable-modules/disable_modules_lockedown_link",
+                "kmodlock_load_data",
+                "/sys/fs/bpf/bpflock/kmodlock/kmodlock_loaddata_link",
+        },
+        {
+                "kmodlock_locked_down",
+                "/sys/fs/bpf/bpflock/kmodlock/kmodlock_lockedown_link",
         },
 };
 
-/* End of disable modules security class */
+/* End of kmodlock security class */
 
 
-#endif /* __BPFLOCK_KIMG_H */
+#endif /* __BPFLOCK_KMODLOCK_H */
