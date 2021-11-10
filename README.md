@@ -11,9 +11,10 @@
 ## Sections
 
 * [1. Introduction](https://github.com/linux-lock/bpflock#1-introduction)
-* [2 Security features](https://github.com/linux-lock/bpflock#2-security-features)
-  - [2.1 Semantics](https://github.com/linux-lock/bpflock#21-semantics)
-* [3. Build](https://github.com/linux-lock/bpflock#3-build)
+* - [1.1 Security features](https://github.com/linux-lock/bpflock#11-security-features)
+  - [1.2 Semantics](https://github.com/linux-lock/bpflock#12-semantics)
+* [2. Build](https://github.com/linux-lock/bpflock#2-build)
+* [4. Deployment]
 
 
 ## 1. Introduction
@@ -32,18 +33,18 @@ Note: `bpflock` is able to restrict root access to some features, however it doe
 
 `bpflock` bpf programs offer multiple security protections and are able to restrict access to the following features:
 
-* [Hardware additions](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md)
+* [Hardware additions](https://github.com/linux-lock/bpflock/tree/main/doc/hardware-additions.md)
 
-  - [USB additions protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
+  - [USB additions protection](https://github.com/linux-lock/bpflock/tree/main/doc/hardware-additions.md#1-usb-additions-protection)
 
-* [Memory protections](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md)
+* [Memory protections](https://github.com/linux-lock/bpflock/tree/main/doc/memory-protections.md)
 
-  - [Kernel image lock down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down)
-  - [Kernel modules protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
-  - [BPF protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection)
-  - [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#4-execution-of-memory-elf-binaries)
+  - [Kernel image lock down](https://github.com/linux-lock/bpflock/tree/main/doc/memory-protections.md#1-kernel-image-lock-down)
+  - [Kernel modules protection](https://github.com/linux-lock/bpflock/tree/main/doc/memory-protections.md#2-kernel-modules-protections)
+  - [BPF protection](https://github.com/linux-lock/bpflock/tree/main/doc/memory-protections.md#3-bpf-protection)
+  - [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/doc/memory-protections.md#4-execution-of-memory-elf-binaries)
 
-* [Filesystem protections](https://github.com/linux-lock/bpflock/tree/main/docs/filesystem-protections.md)
+* [Filesystem protections](https://github.com/linux-lock/bpflock/tree/main/doc/filesystem-protections.md)
 
   - Read-only root filesystem protection
   - sysfs protection
@@ -73,8 +74,7 @@ First we need the right dependencies:
 * [libbpf](https://github.com/linux-lock/bpflock#21-libbpf)
 * [kernel version 5.15](https://github.com/linux-lock/bpflock#22-kernel)
 * [Libraries and compilers](https://github.com/linux-lock/bpflock#23-libraries-and-compilers)
-
-Follow [build documentation](https://github.com/linux-lock/bpflock#4.4-build) on how to build it.
+* [Build binaries](https://github.com/linux-lock/bpflock#24-build-binaries)
 
 
 ### 2.1 libbpf
@@ -114,7 +114,7 @@ To build install the following packages:
         zlib1g-dev libelf-dev libfl-dev
   ```
 
-### 2.4 Build
+### 2.4 Build binaries
 
 Get libbpf if not:
 ```
@@ -126,6 +126,8 @@ To build just run:
 make
 ```
 
-All build binaries will be produced in `build/` directory.
+All build binaries and libraries will be produced in `build/dist/` directory.
 
-Current build process was inspired by: https://github.com/iovisor/bcc/tree/master/libbpf-tools
+Current build process was inspired from: https://github.com/iovisor/bcc/tree/master/libbpf-tools
+
+## 4. Deployment
