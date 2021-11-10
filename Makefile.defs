@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: Apache-2.0
+
+# Copyright 2021 Djalal Harouni
+# Copyright 2017-2020 Authors of Cilium
+
+SHELL := /bin/bash
+.SHELLFLAGS := -eu -o pipefail -c
+
+# Organization variables
+GIT_ORG ?= linux-lock
+DOCKER_ORG ?= linuxlock
+
+REPODIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+
+BUILD := $(abspath ./build/)
+BUILD_DATE = $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+DIST_DIR := $(abspath ./build/dist/)
+DIST_BINDIR := $(abspath ./build/dist/bin)
+BUILDLIB := $(abspath ./build/libs/)
+DIST_LIBDIR := $(abspath ./build/dist/libs)
+BPFTOOL ?= $(abspath ./tools/bpftool)
+LIBBPF ?= $(abspath ./src/cc/libbpf/)
+
+INSTALL ?= install
+PREFIX ?= /usr/
+BINDIR ?= $(PREFIX)/bin
+LIBDIR ?= $(PREFIX)/lib
+
+ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/')
+ifeq ($(ARCH),)
+$(error " testError: architecture $(ARCH) is not supported yet. Please open an issue")
+endif
+
+# Docker variables
+CONTAINER_ENGINE ?= docker
+DOCKER_BUILD_PROGRESS ?= auto
+
+TAG := $(shell git describe --tags --always)
+VERSION :=
+changes := $(shell git status --porcelain)
+ifeq ($(changes),)
+VERSION := $(TAG)
+else
+VERSION := $(TAG)-dirty
+endif
+
+# Some Go variables
+GO ?= go
+export GOARCH ?= $(shell $(GO) env GOARCH)
+
+#GOFILES_EVAL := $(subst _$(ROOT_DIR)/,,$(shell $(GO_LIST) -find -e ./...))
+#GOFILES ?= $(GOFILES_EVAL)
+#TESTPACKAGES := $(shell go list ./... | grep -v github.com/linux-lock/bpflock/integration)
+
+export
