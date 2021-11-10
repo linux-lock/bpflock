@@ -152,7 +152,6 @@ int reuse_ns_map(struct disablebpf_bpf *skel, int *fd)
 
 static int setup_bpf_env_map(struct disablebpf_bpf *skel, int *fd)
 {
-        struct stat st;
         int err;
         int f;
 
@@ -214,7 +213,7 @@ int main(int argc, char **argv)
 
         err = stat(bpf_security_map.pin_path, &st);
         if (err == 0) {
-                fprintf(stdout, "%s: %s already loaded nothing todo, please delete pinned file '%s' "
+                fprintf(stdout, "%s: %s already loaded nothing todo, please delete pinned directory '%s' "
                         "to be able to run it again.\n",
                         LOG_BPFLOCK, argv[0], bpf_security_map.pin_path);
                 return -EALREADY;
