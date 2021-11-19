@@ -17,6 +17,6 @@ struct bpflock_class_map {
 struct bpflock_class_prog_link {
         const char *name;
         const char *link;
-};
+} bpflock_class_prog_link_t;
 
 #endif /* __BPFLOCK_SECURITY_CLASS_H */
