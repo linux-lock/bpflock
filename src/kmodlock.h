@@ -12,7 +12,7 @@
 
 /* kmodlock security class */
 
-#define LOG_DISABLE_MODULES "kmodlock"
+#define LOG_KMODLOCK "kmodlock"
 
 #define BPFLOCK_KM_PERM        1
 #define BPFLOCK_KM_OP          2
