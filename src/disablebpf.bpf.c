@@ -17,6 +17,9 @@
 #include "bpflock_bpf_defs.h"
 #include "disablebpf.h"
 
+#define DBPF_PROGRAMS 2
+#define DBPF_WRITE_USER 16
+
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
         __uint(max_entries, 8);
@@ -68,7 +71,7 @@ int BPF_PROG(disablebpf, int cmd, union bpf_attr *attr,
         if (ret != 0)
                 return ret;
 
-        if (pinned_bpf == 2) {
+        if (pinned_bpf == DBPF_PROGRAMS) {
                 val = bpf_map_lookup_elem(&disablebpf_map, &k);
                 if (!val)
                         return ret;
@@ -130,7 +133,7 @@ int BPF_PROG(disablebpf_bpf_write, enum lockdown_reason what, int ret)
         if (ret != 0 )
                 return ret;
 
-        if (what != LOCKDOWN_BPF_WRITE_USER || pinned_bpf != 2)
+        if (what != DBPF_WRITE_USER || pinned_bpf != DBPF_PROGRAMS)
                 return ret;
 
         val = bpf_map_lookup_elem(&disablebpf_map, &k);
