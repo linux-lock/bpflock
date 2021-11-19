@@ -4,13 +4,13 @@
 
 ### 1.1 Introduction
 
-`usbban` - Implements restrictions to lock-down USB devices.
+`usblock` - Implements restrictions to lock-down USB devices.
 When connecting a USB device it will be shown on the system but not
 authorized to be used, this allows to **restrict** some bad USB
 and poisontap attacks that emulate an Ethernet device over USB to
 hijack network traffic.
 
-`usbban` supports blocking new USB devices at runtime without changing your
+`usblock` supports blocking new USB devices at runtime without changing your
 machine configuration.
 
 This is particulary useful if you do not trust the USB ports of your IoT

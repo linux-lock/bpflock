@@ -116,9 +116,10 @@ If `/sys` is read-only and can not be remounted, then `kimgban` is pinned and co
   - Automatic loading of kernel modules. This will block users (or attackers) from auto-loading modules. Unprivileged code will not be able to load "vulnerable" modules in this case. 
   - Unsafe usage of module parameters.
 
-`kmodban` can also be used to ensure that all kernel modules, firmware, etc that are loaded originate from the same root filesystem. Extra flags can be passed to ensure that such filesystem is: mounted read-only or either backed by a read-only device such as dm-verity, if not then the operation will be denied. Some of this functionality was inspired by [LoadPin LSM](https://www.kernel.org/doc/html/latest/admin-guide/LSM/LoadPin.html).
+`kmodban` can also be used to ensure that all kernel modules and firmware that are loaded originate from the same root filesystem. Extra flags can be passed to ensure that such filesystem is: mounted read-only or either backed by a read-only device such as dm-verity, if not then the operation will be denied. Some of this functionality was inspired by [LoadPin LSM](https://www.kernel.org/doc/html/latest/admin-guide/LSM/LoadPin.html).
 
-**Limitations: due to being an BPF program, it can miss some modules that have already been loaded before the bpf filesystem is mounted or the BPF program is inserted. Running this in early boot will minimize such cases.**
+**Limitations: due to being an BPF program, it will miss some modules that have already been loaded before the bpf filesystem is mounted, or when init starts it and BPF programs are inserted. Running this in early boot before network setup will minimize such cases, example when systemd mounts local filesystems.**
+
 
 ### 2.2 Modules protection usage
 
