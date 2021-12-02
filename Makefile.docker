@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: Apache-2.0
+
+# Copyright 2021 Djalal Harouni
+# Copyright 2017-2020 Authors of Cilium
+
+DOCKER ?= docker
+CONTAINER_ENGINE ?= docker
+DOCKER_BUILD_PROGRESS ?= plain
+DOCKER_REGISTRY ?= docker.io
+DOCKER_BUILDER := $(shell docker buildx ls | grep -E -e "[a-zA-Z0-9-]+ \*" | cut -d ' ' -f1)
+
+BUILD_BASE_IMAGE="ubuntu"
+BUILD_BASE_RELEASE="focal"
+
+export DOCKER
+export CONTAINER_ENGINE
+export DOCKER_BUILDKIT=1
+
+# Docker Buildx support. If ARCH is defined, a builder instance 'cross'
+ifdef ARCH
+  # Default to multi-arch builds, always create the builder for all the platforms we support
+  DOCKER_PLATFORMS := linux/amd64
+  ifeq ($(DOCKER_BUILDER),default)
+    DOCKER_BUILDKIT_DRIVER :=
+    ifdef DOCKER_BUILDKIT_IMAGE
+      DOCKER_BUILDKIT_DRIVER := --driver docker-container --driver-opt image=$(DOCKER_BUILDKIT_IMAGE)
+    endif
+    BUILDER_SETUP := $(shell docker buildx create --platform $(DOCKER_PLATFORMS) $(DOCKER_BUILDKIT_DRIVER) --use)
+  endif
+  # Override default for a single platform
+  ifneq ($(ARCH),multi)
+    DOCKER_PLATFORMS := linux/amd64
+  endif
+  DOCKER_FLAGS += --push --platform $(DOCKER_PLATFORMS)
+else
+  # ARCH not specified, build for the host platfrom without pushing, mimicking regular docker build
+  DOCKER_FLAGS += --load
+endif
+
+# Set DOCKER_IMAGE_TAG with "latest" by default
+ifeq ($(DOCKER_IMAGE_TAG),)
+  DOCKER_IMAGE_TAG=latest
+endif
+
+##@ Docker Images
+.PHONY: builder-info
+builder-info: ## Print information about the docker builder that will be used for building images.
+	@echo "Using Docker Buildx builder \"$(DOCKER_BUILDER)\" with build flags \"$(DOCKER_FLAGS)\"."
+
+# Generic rule for augmented .dockerignore files.
+GIT_IGNORE_FILES := $(shell find . -not -path "./vendor*" -name .gitignore -print)
+.PRECIOUS: %.dockerignore
+%.dockerignore: $(GIT_IGNORE_FILES) Makefile.docker
+	@-mkdir -p $(dir $@)
+	@echo "/hack" > $@
+	@echo "/Makefile.docker" >> $@
+	echo $(dir $(GIT_IGNORE_FILES)) | tr ' ' '\n' | xargs -P1 -n1 -I {DIR} sed \
+		-e '# Remove lines with white space, comments and files that must be passed to docker, "$$" due to make. #' \
+			-e '/^[[:space:]]*$$/d' -e '/^#/d' -e '/GIT_VERSION/d' \
+		-e '# Apply pattern in all directories if it contains no "/", keep "!" up front. #' \
+			-e '/^[^!/][^/]*$$/s<^<**/<' -e '/^![^/]*$$/s<^!<!**/<' \
+		-e '# Prepend with the directory name, keep "!" up front. #' \
+			-e '/^[^!]/s<^<{DIR}<' -e '/^!/s<^!<!{DIR}<'\
+		-e '# Remove leading "./", keep "!" up front. #' \
+			-e 's<^\./<<' -e 's<^!\./<!<' \
+		-e '# Append newline to the last line if missing. GNU sed does not do this automatically. #' \
+			-e '$$a\' \
+		{DIR}.gitignore >> $@
+
+IMAGE_REPOSITORY := $(DOCKER_REGISTRY)/$(DOCKER_ORG)
+
+#
+# Template for Docker images. Paramaters are:
+# $(1) image target name
+# $(2) Dockerfile path
+# $(3) image name stem
+# $(4) image tag
+#
+# $(eval IMAGE_NAME := $(subst %,$$$$*,$(3))$(UNSTRIPPED))
+define DOCKER_IMAGE_TEMPLATE
+.PHONY: $(1)
+$(1): $(2).dockerignore builder-info
+	$(eval IMAGE_NAME := $(3)$(UNSTRIPPED))
+	$(CONTAINER_ENGINE) buildx build -f "$(2)Dockerfile" \
+		--progress=$(DOCKER_BUILD_PROGRESS) \
+		--build-arg ROOT_DIR=$(ROOT_DIR) \
+		--build-arg BASE_IMAGE=${BUILD_BASE_IMAGE} \
+		--build-arg BASE_RELEASE=${BUILD_BASE_RELEASE} \
+		--build-arg GIT_ORG=$(GIT_ORG) \
+		--build-arg DOCKER_ORG=$(DOCKER_ORG) \
+		--build-arg IMAGE_NAME=$(IMAGE_NAME) \
+		--build-arg NOSTRIP=$(NOSTRIP) \
+		--build-arg LLVM_VERSION=$(LLVM_VERSION) \
+		--build-arg BPFLOCK_SHA=$(firstword $(GIT_VERSION)) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg VCS_BRANCH=$(GIT_BRANCH) \
+		--build-arg VCS_REF=$(GIT_VERSION) \
+		$(DOCKER_FLAGS) $(IMAGE_BUILD_FLAGS_EXTRA) \
+		--tag "$(IMAGE_REPOSITORY)/$(IMAGE_NAME):$(4)" \
+		.
+
+ifeq ($(findstring --push,$(DOCKER_FLAGS)),)
+	@echo 'Define "DOCKER_FLAGS=--push" to push the build results.'
+else
+	$(CONTAINER_ENGINE) buildx imagetools inspect $(IMAGE_REPOSITORY)/$(IMAGE_NAME):$(4)
+	@echo 'Build: $(IMAGE_REPOSITORY)/$(IMAGE_NAME):$(4) image pushed'
+endif
+
+$(1)-debug: NOSTRIP=1
+$(1)-debug: UNSTRIPPED=-unstripped
+$(1)-debug: $(1)
+endef
+
+# bpflock-builder image
+$(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock-builder,$(ROOT_DIR)/images/builder/,bpflock-builder,$(GIT_BRANCH)))
+
+.PHONY: bpflock-builder-tag
+bpflock-builder-tag:
+	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_BRANCH) $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_TAG)
+	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_BRANCH) $(IMAGE_REPOSITORY)/bpflock-builder:$(DOCKER_IMAGE_TAG)
+	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_TAG)
+	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_TAG) image pushed'
+	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock-builder:$(DOCKER_IMAGE_TAG)
+	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock-builder:$(DOCKER_IMAGE_TAG) image pushed'
+
+# bpflock
+$(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock,$(ROOT_DIR)/images/docker/,bpflock,$(GIT_BRANCH)))
+
+.PHONY: bpflock-tag
+bpflock-tag:
+	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock:$(GIT_BRANCH) $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG)
+	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock:$(GIT_BRANCH) $(IMAGE_REPOSITORY)/bpflock:$(DOCKER_IMAGE_TAG)
+	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG)
+	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG) image pushed'
+	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock:$(DOCKER_IMAGE_TAG)
+	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG) image pushed'
+
+#
+# docker-*-all targets are mainly used from the CI
+#
+#docker-images-all: bpflock-builder bpflock
+
+#docker-images-all-debug: bpflock-builder-debug bpflock-debug

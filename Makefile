@@ -1,21 +1,41 @@
-# SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
+# SPDX-License-Identifier: Apache-2.0
 
-BUILD := $(abspath ./build/)
-BUILDLIBS := $(abspath ./build/libs/)
-BPFTOOL ?= $(abspath ./tools/bpftool)
+# Copyright 2021 Djalal Harouni
 
-export BUILD BUILDLIBS BPFTOOL
+all: build-containers
+	@echo "Build finished."
 
-.PHONY: all clean
-all:
-	$(MAKE) -C ./src all
+include Makefile.defs
 
+ifndef BASE_IMAGE
+-include Makefile.docker
+endif
+
+# Targets to build
+kubectl_bpflock ?= $(BUILDBINS)/kubectl-bpflock
+
+.PHONY: build-containers
+build-containers: clean bpflock-builder bpflock-builder-tag
+
+${kubectl_bpflock}:
+	CGO_ENABLED=1 $(GO) build ${LDFLAGS} -o $@ ./cmd/kubectl-bpflock
+
+.PHONY: pre-build
+pre-build:
+	$(info Build started)
+	$(info MKDIR build directories)
+	@mkdir -p $(DIST_DIR)
+	@mkdir -p $(DIST_BINDIR)
+	@mkdir -p $(BUILDLIB)
+	@mkdir -p $(DIST_LIBDIR)
+
+.PHONY: bpf-tools
+bpf-tools: clean pre-build
+	$(info MAKE: start building cbpf tools)
+	$(info MAKE -C src all)
+	@$(MAKE) -C $(shell pwd)/src all
+
+.PHONY: clean
 clean:
-	$(call msg,CLEAN)
-	$(MAKE) -C ./src clean
-
-install: $(APPS)
-	$(call msg, INSTALL libbpf-tools)
-	$(Q)$(INSTALL) -m 0755 -d $(DESTDIR)$(prefix)/bin
-	$(Q)$(INSTALL) $(APPS) $(DESTDIR)$(prefix)/bin
-	$(Q)cp -a $(APP_ALIASES) $(DESTDIR)$(prefix)/bin
+	$(info CLEAN build)
+	@$(RM) -R $(BUILD)
