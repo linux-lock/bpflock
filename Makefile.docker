@@ -117,6 +117,8 @@ $(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock-builder,$(ROOT_DIR)/images/builder/,
 
 .PHONY: bpflock-builder-tag
 bpflock-builder-tag: ## Tag bpflock-builder image and push it.
+	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_BRANCH)
+	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_BRANCH) image pushed'
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_BRANCH) $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_TAG)
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_BRANCH) $(IMAGE_REPOSITORY)/bpflock-builder:$(DOCKER_IMAGE_TAG)
 	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_TAG)
@@ -129,6 +131,8 @@ $(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock,$(ROOT_DIR)/images/docker/,bpflock,$
 
 .PHONY: bpflock-tag
 bpflock-tag: ## Tag docker bpflock image and push it.
+	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock:$(GIT_BRANCH)
+	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock:$(GIT_BRANCH) image pushed'
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock:$(GIT_BRANCH) $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG)
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock:$(GIT_BRANCH) $(IMAGE_REPOSITORY)/bpflock:$(DOCKER_IMAGE_TAG)
 	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG)
