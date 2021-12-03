@@ -31,7 +31,7 @@ ifdef ARCH
   ifneq ($(ARCH),multi)
     DOCKER_PLATFORMS := linux/amd64
   endif
-  DOCKER_FLAGS += --push --platform $(DOCKER_PLATFORMS)
+  DOCKER_FLAGS += --load --platform $(DOCKER_PLATFORMS)
 else
   # ARCH not specified, build for the host platfrom without pushing, mimicking regular docker build
   DOCKER_FLAGS += --load
