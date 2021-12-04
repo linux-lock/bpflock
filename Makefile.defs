@@ -50,7 +50,10 @@ FULL_BUILD_VERSION = $(VERSION) $(GIT_VERSION)
 # LLVM VERSION
 LLVM_VERSION="12"
 
-# Some Go variables
+# We are inside container
+ifdef CONTAINER_ENGINE
+
+# Go environment
 GO ?= go
 export GOARCH ?= $(shell $(GO) env GOARCH)
 GO_BUILD = CGO_ENABLED=0 $(GO) build
@@ -70,5 +73,7 @@ endif
 
 GO_BUILD += $(GO_BUILD_FLAGS)
 GO_BUILD_WITH_CGO += $(GO_BUILD_FLAGS)
+
+endif # Endif of CONTAINER_ENGINE for definitions inside container.
 
 export
