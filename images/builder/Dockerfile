@@ -31,10 +31,10 @@ ARG TARGETARCH
 
 RUN apt update && \
     apt-get upgrade -y --no-install-recommends && \
-    apt install -y ca-certificates gpg
+    apt install -y ca-certificates gnupg2
 
-RUN echo "deb http://apt.llvm.org/$BASE_RELEASE/ llvm-toolchain-$BASE_RELEASE-$LLVM_VERSION main" >> /etc/apt/sources.list
-RUN echo "deb-src http://apt.llvm.org/$BASE_RELEASE/ llvm-toolchain-$BASE_RELEASE-$LLVM_VERSION main" >> /etc/apt/sources.list
+RUN printf "deb http://apt.llvm.org/$BASE_RELEASE/ llvm-toolchain-$BASE_RELEASE-$LLVM_VERSION main" | tee /etc/apt/sources.list.d/llvm-toolchain-$BASE_RELEASE-$LLVM_VERSION.list
+RUN printf "deb-src http://apt.llvm.org/$BASE_RELEASE/ llvm-toolchain-$BASE_RELEASE-$LLVM_VERSION main" | tee /etc/apt/sources.list.d/llvm-toolchain-$BASE_RELEASE-$LLVM_VERSION.list
 RUN apt-key adv --keyserver hkps://keyserver.ubuntu.com --recv-keys 15CF4D18AF4F7421 && \
     apt update -y && \
     apt install -y --no-install-recommends curl wget rsync tar make bash \
