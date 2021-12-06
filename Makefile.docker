@@ -123,6 +123,9 @@ bpflock-builder-tag: bpflock-builder ## Tag bpflock-builder images.
 # bpflock
 $(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock,$(ROOT_DIR)/images/docker/,bpflock,$(GIT_BRANCH)))
 
+# integration
+$(eval $(call DOCKER_IMAGE_TEMPLATE,integration,$(ROOT_DIR)/images/tests/docker/,bpflock-integration,$(GIT_TAG)))
+
 .PHONY: bpflock-tag
 bpflock-tag: bpflock ## Tag docker bpflock image.
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock:$(GIT_BRANCH) $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG)

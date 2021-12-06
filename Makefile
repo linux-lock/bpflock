@@ -44,7 +44,7 @@ help: Makefile
 	@# These are templated targets.
 	$(call print_help_line,"bpflock-builder","Build bpflock-builder docker image")
 	$(call print_help_line,"bpflock","Build bpflock docker image")
-
+	$(call print_help_line, "integration", "Build bpflock docker image and run integration tests")
 
 # This builds inside container
 .PHONY: bpf-tools
