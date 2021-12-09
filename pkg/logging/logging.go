@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Djalal Harouni
 // Copyright 2016-2021 Authors of Cilium
 
 package logging
@@ -6,7 +7,6 @@ package logging
 import (
 	"bufio"
 	"bytes"
-	"flag"
 	"fmt"
 	"os"
 	"regexp"
@@ -14,9 +14,7 @@ import (
 	"sync/atomic"
 
 	"github.com/linux-lock/bpflock/pkg/logging/logfields"
-
 	"github.com/sirupsen/logrus"
-	"k8s.io/klog/v2"
 )
 
 type LogFormat string
@@ -37,36 +35,11 @@ const (
 	DefaultLogLevel logrus.Level = logrus.InfoLevel
 )
 
-// DefaultLogger is the base logrus logger. It is different from the logrus
-// default to avoid external dependencies from writing out unexpectedly
-var DefaultLogger = InitializeDefaultLogger()
-
-func init() {
-	log := DefaultLogger.WithField(logfields.LogSubsys, "klog")
-
-	//Create a new flag set and set error handler
-	klogFlags := flag.NewFlagSet("bpflock", flag.ExitOnError)
-
-	// Make sure that klog logging variables are initialized so that we can
-	// update them from this file.
-	klog.InitFlags(klogFlags)
-
-	// Make sure klog does not log to stderr as we want it to control the output
-	// of klog so we want klog to log the errors to each writer of each level.
-	klogFlags.Set("logtostderr", "false")
-
-	// We don't need all headers because logrus will already print them if
-	// necessary.
-	klogFlags.Set("skip_headers", "true")
-
-	klog.SetOutputBySeverity("INFO", log.WriterLevel(logrus.InfoLevel))
-	klog.SetOutputBySeverity("WARNING", log.WriterLevel(logrus.WarnLevel))
-	klog.SetOutputBySeverity("ERROR", log.WriterLevel(logrus.ErrorLevel))
-	klog.SetOutputBySeverity("FATAL", log.WriterLevel(logrus.FatalLevel))
-
-	// Do not repeat log messages on all severities in klog
-	klogFlags.Set("one_output", "true")
-}
+var (
+	// DefaultLogger is the base logrus logger. It is different from the logrus
+	// default to avoid external dependencies from writing out unexpectedly
+	DefaultLogger = InitializeDefaultLogger()
+)
 
 // LogOptions maps configuration key-value pairs related to logging.
 type LogOptions map[string]string
@@ -114,6 +87,16 @@ func (o LogOptions) GetLogFormat() LogFormat {
 	}
 
 	return LogFormat(formatOpt)
+}
+
+// Sets the subsys logger and returns a new log entry from a logrus Logger
+func GetLogSubsys(subsys string) *logrus.Entry {
+	return DefaultLogger.WithField(logfields.LogSubsys, subsys)
+}
+
+// Sets the ebpf program loffer and returns a new log entry
+func GetLogBpfsubsys(bpfprog string) *logrus.Entry {
+	return DefaultLogger.WithField(logfields.LogBpfSubsys, bpfprog)
 }
 
 // SetLogLevel updates the DefaultLogger with a new logrus.Level
