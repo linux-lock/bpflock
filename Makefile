@@ -3,6 +3,7 @@
 # Copyright 2021 Djalal Harouni
 # Copyright 2017-2020 Authors of Cilium
 
+##@ Default target
 all: clean bpflock  ## Default builds bpflock docker image.
 	@echo "Build finished."
 
@@ -11,7 +12,6 @@ include Makefile.defs
 ifndef BASE_IMAGE
 -include Makefile.docker
 endif
-
 
 define print_help_line
     @printf "  \033[36m%-29s\033[0m %s.\n" $(1) $(2)
@@ -23,6 +23,9 @@ kubectl_bpflock ?= $(BUILDBINS)/kubectl-bpflock
 ${kubectl_bpflock}:
 	CGO_ENABLED=1 $(GO) build ${LDFLAGS} -o $@ ./cmd/kubectl-bpflock
 
+defined-%:
+	@: $(if $(value $*),,$(error make failed: $* is undefined))
+
 .PHONY: pre-build
 pre-build:
 	$(info Build started)
@@ -32,8 +35,17 @@ pre-build:
 	@mkdir -p $(BUILDLIB)
 	@mkdir -p $(DIST_LIBDIR)
 
+##@ Inside container targets
+
+# This builds inside container
+.PHONY: container-bpf-tools
+container-bpf-tools: clean pre-build | defined-BASE_IMAGE ## Builds bpf tools using libbpf inside container.
+	$(info MAKE: start building cbpf tools inside container)
+	$(info MAKE -C src all)
+	@$(MAKE) -C $(shell pwd)/src all
+
 .PHONY: clean
-clean:
+clean: ## Clean builds and remove related containers.
 	$(info CLEAN build)
 	@$(RM) -R $(BUILD)
 
@@ -45,10 +57,3 @@ help: Makefile
 	$(call print_help_line,"bpflock-builder","Build bpflock-builder docker image")
 	$(call print_help_line,"bpflock","Build bpflock docker image")
 	$(call print_help_line, "integration", "Build bpflock docker image and run integration tests")
-
-# This builds inside container
-.PHONY: bpf-tools
-bpf-tools: clean pre-build
-	$(info MAKE: start building cbpf tools)
-	$(info MAKE -C src all)
-	@$(MAKE) -C $(shell pwd)/src all
