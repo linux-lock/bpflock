@@ -9,6 +9,7 @@ all: clean bpflock  ## Default builds bpflock docker image.
 
 include Makefile.defs
 
+BASE_IMAGE := $(BASE_IMAGE)
 ifndef BASE_IMAGE
 -include Makefile.docker
 endif
