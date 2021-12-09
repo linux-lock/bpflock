@@ -11,6 +11,9 @@ const (
 	// LogSubsys is the field denoting the subsystem when logging
 	LogSubsys = "subsys"
 
+	// LogBpfSubsys is the field denoting the bpf program when logging
+	LogBpfSubsys = "bpfprog"
+
 	// Signal is the field to print os signals on exit etc.
 	Signal = "signal"
 
