@@ -4,7 +4,7 @@
 # Copyright 2017-2020 Authors of Cilium
 
 ##@ Default target
-all: clean bpflock  ## Default builds bpflock docker image.
+all: bpflock  ## Default builds bpflock docker image.
 	@echo "Build finished."
 
 include Makefile.defs
@@ -40,15 +40,17 @@ pre-build:
 
 # This builds inside container
 .PHONY: container-bpf-tools
-container-bpf-tools: clean pre-build | defined-BASE_IMAGE ## Builds bpf tools using libbpf inside container.
+container-bpf-tools: clean-bpf-tools pre-build | defined-BASE_IMAGE ## Builds bpf tools using libbpf inside container.
 	$(info MAKE: start building cbpf tools inside container)
 	$(info MAKE -C src all)
 	@$(MAKE) -C $(shell pwd)/src all
 
-.PHONY: clean
-clean: ## Clean builds and remove related containers.
-	$(info CLEAN build)
+.PHONY: clean-bpf-tools
+clean-bpf-tools: ## Clean bpf-tools build directories.
 	@$(RM) -R $(BUILD)
+	$(info Clean bpf-tools build directories)
+
+clean: clean-bpf-tools clean-images ## Remove bpflock docker images including builder and clean directories.
 
 .PHONY: help
 help: Makefile
