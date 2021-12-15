@@ -7,9 +7,11 @@
 all: bpflock  ## Default builds bpflock docker image.
 	@echo "Build finished."
 
+# We need this to load in-container related variables
+export BASE_IMAGE := $(BASE_IMAGE)
+
 include Makefile.defs
 
-BASE_IMAGE := $(BASE_IMAGE)
 ifndef BASE_IMAGE
 -include Makefile.docker
 endif
@@ -36,6 +38,8 @@ pre-build:
 	@mkdir -p $(BUILDLIB)
 	@mkdir -p $(DIST_LIBDIR)
 
+clean: clean-bpf-tools clean-images ## Remove bpflock docker images including builder and clean directories.
+
 ##@ Inside container targets
 
 # This builds inside container
@@ -45,18 +49,34 @@ container-bpf-tools: clean-bpf-tools pre-build | defined-BASE_IMAGE ## Builds bp
 	$(info MAKE -C src all)
 	@$(MAKE) -C $(shell pwd)/src all
 
+
 .PHONY: clean-bpf-tools
 clean-bpf-tools: ## Clean bpf-tools build directories.
 	@$(RM) -R $(BUILD)
 	$(info Clean bpf-tools build directories)
 
-clean: clean-bpf-tools clean-images ## Remove bpflock docker images including builder and clean directories.
+##@ Code checks and tests
+
+.PHONY: govet
+govet: ## Run go vet on Go source files of this repository.
+	$(GO) vet \
+		./pkg/... \
+		./test/helpers \
+		./test/runtime
+
+.PHONY: gofmt
+gofmt: ## Run go fmt on Go source files in the repository.
+	for pkg in $(GOFILES); do $(GO) fmt $$pkg; done
+
+.PHONY: tests
+tests: bpflock-tests
 
 .PHONY: help
 help: Makefile
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-28s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 	@# There is also a list of target we have to manually put the information about.
 	@# These are templated targets.
-	$(call print_help_line,"bpflock-builder","Build bpflock-builder docker image")
-	$(call print_help_line,"bpflock","Build bpflock docker image")
+	$(call print_help_line, "bpflock-builder", "Build bpflock-builder docker image")
+	$(call print_help_line, "bpflock", "Build bpflock docker image")
+	$(call print_help_line, "tests", "Build bpflock docker image and run go tests")
 	$(call print_help_line, "integration", "Build bpflock docker image and run integration tests")
