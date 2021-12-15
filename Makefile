@@ -8,7 +8,7 @@ all: bpflock  ## Default builds bpflock docker image.
 	@echo "Build finished."
 
 # We need this to load in-container related variables
-export BASE_IMAGE := $(BASE_IMAGE)
+export BASE_IMAGE ?= $(BASE_IMAGE)
 
 include Makefile.defs
 
