@@ -25,8 +25,8 @@ LIBBPF ?= $(abspath ./src/cc/libbpf/)
 
 INSTALL ?= install
 PREFIX ?= /usr/
-BINDIR ?= $(PREFIX)/bin
-LIBDIR ?= $(PREFIX)/lib
+BINDIR ?= $(PREFIX)bin
+LIBDIR ?= $(PREFIX)lib
 
 ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/')
 ifeq ($(ARCH),)
@@ -50,12 +50,11 @@ FULL_BUILD_VERSION = $(VERSION) $(GIT_VERSION)
 # LLVM VERSION
 LLVM_VERSION="12"
 
-# We are inside container
-ifdef CONTAINER_ENGINE
-
 # Go environment
-GO ?= go
-export GOARCH ?= $(shell $(GO) env GOARCH)
+GO ?= $(shell command -v go 2> /dev/null)
+
+ifdef GO
+GOARCH ?= $(shell $(GO) env GOARCH)
 GO_BUILD = CGO_ENABLED=0 $(GO) build
 
 ifeq ($(GOARCH),arm64)
@@ -67,13 +66,13 @@ ifeq ($(NOSTRIP),)
     GO_BUILD_LDFLAGS += -s -w
 endif
 
-#GOFILES_EVAL := $(subst _$(ROOT_DIR)/,,$(shell $(GO_LIST) -find -e ./...))
-#GOFILES ?= $(GOFILES_EVAL)
-#TESTPACKAGES := $(shell go list ./... | grep -v github.com/linux-lock/bpflock/integration)
+GOFILES_EVAL := $(subst _$(ROOT_DIR)/,,$(shell $(GO) list -find -e ./...))
+GOFILES ?= $(GOFILES_EVAL)
+TESTPACKAGES := $(shell go list ./... | grep -v github.com/linux-lock/bpflock/integration)
 
 GO_BUILD += $(GO_BUILD_FLAGS)
 GO_BUILD_WITH_CGO += $(GO_BUILD_FLAGS)
 
-endif # Endif of CONTAINER_ENGINE for definitions inside container.
+endif
 
 export
