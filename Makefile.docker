@@ -123,12 +123,6 @@ bpflock-builder-tag: bpflock-builder ## Tag bpflock-builder images.
 # bpflock
 $(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock,$(ROOT_DIR)/images/docker/,bpflock,$(GIT_BRANCH)))
 
-# tests
-$(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock-tests,$(ROOT_DIR)/images/tests/,bpflock-tests,$(DOCKER_IMAGE_TAG)))
-
-# integration
-$(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock-integration,$(ROOT_DIR)/images/tests/,bpflock-integration,$(DOCKER_IMAGE_TAG)))
-
 .PHONY: bpflock-tag
 bpflock-tag: bpflock ## Tag docker bpflock image.
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock:$(GIT_BRANCH) $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG)
@@ -151,6 +145,9 @@ bpflock-push: bpflock-tag ## Push bpflock images.
 	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG) image pushed'
 	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock:$(DOCKER_IMAGE_TAG)
 	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG) image pushed'
+
+# bpflock-integration
+$(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock-integration,$(ROOT_DIR)/images/docker/,bpflock-integration,$(DOCKER_IMAGE_TAG)))
 
 #
 # docker-*-all targets are mainly used from the CI

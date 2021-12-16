@@ -8,7 +8,7 @@ all: bpflock  ## Default builds bpflock docker image.
 	@echo "Build finished."
 
 # We need this to load in-container related variables
-export BASE_IMAGE ?= $(BASE_IMAGE)
+export BASE_IMAGE := $(BASE_IMAGE)
 
 include Makefile.defs
 
@@ -68,8 +68,16 @@ govet: ## Run go vet on Go source files of this repository.
 gofmt: ## Run go fmt on Go source files in the repository.
 	for pkg in $(GOFILES); do $(GO) fmt $$pkg; done
 
-.PHONY: tests
-tests: bpflock-tests
+.PHONY: check-code
+check-code: gofmt govet ## Run checks on code
+
+.PHONY: test
+test: ## Run unit tests
+	$(GO) test -v -race $(TESTPACKAGES)
+
+.PHONY: integration
+integration: check-code bpflock-integration ## Build bpflock-integration tests docker image and run the tests.
+	$(GO) test -failfast -count=1 -v ./test/runtime/...
 
 .PHONY: help
 help: Makefile
@@ -78,5 +86,4 @@ help: Makefile
 	@# These are templated targets.
 	$(call print_help_line, "bpflock-builder", "Build bpflock-builder docker image")
 	$(call print_help_line, "bpflock", "Build bpflock docker image")
-	$(call print_help_line, "tests", "Build bpflock docker image and run go tests")
-	$(call print_help_line, "integration", "Build bpflock docker image and run integration tests")
+	$(call print_help_line, "bpflock-integration", "Build bpflock-integration tests docker image")

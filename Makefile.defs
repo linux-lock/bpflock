@@ -68,7 +68,7 @@ endif
 
 GOFILES_EVAL := $(subst _$(ROOT_DIR)/,,$(shell $(GO) list -find -e ./...))
 GOFILES ?= $(GOFILES_EVAL)
-TESTPACKAGES := $(shell go list ./... | grep -v github.com/linux-lock/bpflock/integration)
+TESTPACKAGES := $(shell go list ./... | grep -v "github.com/linux-lock/bpflock/test/runtime")
 
 GO_BUILD += $(GO_BUILD_FLAGS)
 GO_BUILD_WITH_CGO += $(GO_BUILD_FLAGS)
