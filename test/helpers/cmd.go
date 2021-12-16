@@ -18,6 +18,7 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 	"github.com/sirupsen/logrus"
+	. "github.com/smartystreets/goconvey/convey"
 	"k8s.io/client-go/util/jsonpath"
 )
 
@@ -516,9 +517,11 @@ func (res *CmdRes) ExpectContains(data string, optionalDescription ...interface{
 // ExpectMatchesRegexp asserts that the stdout of the executed command
 // matches the regexp. It accepts an optional parameter that can be
 // used to annotate failure messages.
-func (res *CmdRes) ExpectMatchesRegexp(regexp string, optionalDescription ...interface{}) bool {
-	return gomega.ExpectWithOffset(1, res.Stdout()).To(
-		gomega.MatchRegexp(regexp), optionalDescription...)
+func (res *CmdRes) ExpectMatchesRegexp(c C, regexp string, optionalDescription ...interface{}) bool {
+	c.So(res.Stdout(), ShouldContainSubstring, regexp)
+	return true
+	//return gomega.ExpectWithOffset(1, res.Stdout()).To(
+	//	gomega.MatchRegexp(regexp), optionalDescription...)
 }
 
 // ExpectContainsFilterLine applies the provided JSONPath filter to each line
