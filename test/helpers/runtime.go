@@ -5,7 +5,8 @@
 package helpers
 
 import (
-	. "github.com/franela/goblin"
+	"fmt"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -36,19 +37,23 @@ func InitRuntimeHelper(target string, log *logrus.Entry) *SSHMeta {
 }
 */
 
-func InitLocalRuntimeHelper(g *G, logger *logrus.Entry) *LocalExecutor {
+func InitLocalRuntimeHelper(logger *logrus.Entry) (*LocalExecutor, error) {
 	var environ []string
 	var exec *LocalExecutor
 
-	g.It("Initialize Local Runtime executor", func() {
-		exec = CreateLocalExecutor(environ)
-		err := exec.setBasePath()
-		g.Assert(err == nil).IsFalse("setBasePath() failed with: '%s'", err.Error())
+	exec = CreateLocalExecutor(environ)
+	err := exec.setBasePath()
+	if err != nil {
+		return nil, fmt.Errorf("setBasePath() failed with: '%s'", err.Error())
+	}
 
-		res := exec.Exec("id")
-		g.Assert(res.WasSuccessful()).Equal(true)
-	})
-
+	// Set logger here
 	exec.logger = logger
-	return exec
+
+	res := exec.Exec("id")
+	if res.WasSuccessful() == false {
+		return nil, fmt.Errorf("Exec(id) failed with: '%s'", res.err)
+	}
+
+	return exec, nil
 }
