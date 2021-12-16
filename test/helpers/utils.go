@@ -235,3 +235,27 @@ func WriteOrAppendToFile(filename string, data []byte, perm os.FileMode) error {
 	}
 	return err
 }
+
+func reportMap(path string, reportCmds map[string]string, node *LocalExecutor) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	reportMapContext(ctx, path, reportCmds, node)
+}
+
+func reportMapContext(ctx context.Context, path string, reportCmds map[string]string, node *LocalExecutor) {
+	if node == nil {
+		log.Errorf("cannot execute reportMap due invalid node instance")
+		return
+	}
+
+	for cmd, logfile := range reportCmds {
+		res := node.ExecContext(ctx, cmd, ExecOptions{SkipLog: true})
+		err := os.WriteFile(
+			fmt.Sprintf("%s/%s", path, logfile),
+			res.CombineOutput().Bytes(),
+			LogPerm)
+		if err != nil {
+			log.WithError(err).Errorf("cannot create test results for command '%s'", cmd)
+		}
+	}
+}
