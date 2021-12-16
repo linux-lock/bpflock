@@ -15,18 +15,19 @@ var (
 
 	// ShortCommandTimeout is a timeout for commands which should not take a
 	// long time to execute.
-	ShortCommandTimeout = 10 * time.Second
+	ShortCommandTimeout = 5 * time.Second
 
 	// MidCommandTimeout is a timeout for commands which may take a bit longer
 	// than ShortCommandTimeout, but less time than HelperTimeout to execute.
 	MidCommandTimeout = 30 * time.Second
 
 	// Startup timeout
-	BpflockStartTimeout = 20 * time.Second
+	BpflockStartTimeout = 30 * time.Second
+
+	BpflockStopTimeout = 30 * time.Second
 )
 
 const (
-
 	//BpflockTestPath is the path where bpflock test code is located.
 	BpflockTestPath = "/src/github.com/linux-lock/bpflock/test"
 
