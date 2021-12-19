@@ -14,9 +14,19 @@ import (
 var log = logging.DefaultLogger
 
 const (
-	// MaxRetries is the number of times that a loop should iterate until a
-	// specified condition is not met
-	MaxRetries = 30
+	BpflockContainer        = "bpflock"
+	BpflockBuilderContainer = "bpflock-builder"
+	BpflockIntegration      = "bpflock-integration"
+	BpflockOpts             = "-it --rm --pid=host --privileged"
+	BpflockVolumes          = "-v /sys/kernel/security:/sys/kernel/security -v /sys/fs/bpf:/sys/fs/bpf"
+	BpflockImage            = "linuxlock/bpflock:latest"
+	BpflockIntegrationImage = "linuxlock/bpflock-integration:latest"
+
+	// Will automatically look for the configuration in /etc/bpflock/
+	// then inside /usr/lib/bpflock/
+	BpflockProfileDeny     = "--config=docker-deny.yaml"
+	BpflockProfileRestrict = "--config=docker-restrict.yaml"
+	BpflockProfileAllow    = "--config=docker-allow.yaml"
 )
 
 // Runs a bpflock command and returns the resultant cmdRes.
@@ -29,7 +39,6 @@ func (s *LocalExecutor) ExecBpflock(cmd string) *CmdRes {
 // zero. Returns an error if the output of `bpflock status` returns a nonzero
 // return code after the specified timeout duration has elapsed.
 func (s *LocalExecutor) WaitUntilReady(timeout time.Duration) error {
-
 	body := func() bool {
 		res := s.ExecBpflock("status")
 		s.logger.Infof("bpflock status is %t", res.WasSuccessful())
@@ -39,15 +48,39 @@ func (s *LocalExecutor) WaitUntilReady(timeout time.Duration) error {
 	return err
 }
 
-// RestartBpflock reloads bpflock on this host, then waits for it to become
+// WaitUntilReadyContainer waits until the output of docker container inspect returns the code
+// with zero and container status is running. Returns a nonzero after the specified timeout
+// duration has elapsed.
+func (s *LocalExecutor) WaitUntilReadyContainer(containerName string, timeout time.Duration) error {
+	body := func() bool {
+		command := fmt.Sprintf("docker container inspect --format='{{.State.Status}}' %s", containerName)
+		res := s.Exec(command)
+		s.logger.Infof("docker container inspect on %s is %t", containerName, res.WasSuccessful())
+		if res.WasSuccessful() && res.ExpectMatchesRegexp("running") {
+			return true
+		} else {
+			return false
+		}
+	}
+	msg := fmt.Sprintf("docker container %s is not ready", containerName)
+	err := WithTimeout(body, msg, &TimeoutConfig{Timeout: timeout})
+	return err
+}
+
+// RestartBpflockContainer reloads bpflock container on this host, then waits for it to become
 // ready again.
-func (s *LocalExecutor) RestartBpflock() error {
-	res := s.ExecWithSudo("docker restart bpflock")
+func (s *LocalExecutor) RunBpflockContainer(sudo bool, name, options, volumes, image string, cmdParams string) error {
+	res := s.ContainerRun(sudo, name, options, volumes, image, cmdParams)
 	if !res.WasSuccessful() {
 		return fmt.Errorf("%s", res.CombineOutput())
 	}
-	if err := s.WaitUntilReady(BpflockStartTimeout); err != nil {
-		return err
+	return s.WaitUntilReadyContainer(name, BpflockStartTimeout)
+}
+
+func (s *LocalExecutor) RmBpflockContainer(name string) error {
+	res := s.ContainerRm(false, name)
+	if !res.WasSuccessful() {
+		return fmt.Errorf("%s", res.CombineOutput())
 	}
 	return nil
 }
