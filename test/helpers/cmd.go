@@ -517,11 +517,11 @@ func (res *CmdRes) ExpectContains(data string, optionalDescription ...interface{
 // ExpectMatchesRegexp asserts that the stdout of the executed command
 // matches the regexp. It accepts an optional parameter that can be
 // used to annotate failure messages.
-func (res *CmdRes) ExpectMatchesRegexp(c C, regexp string, optionalDescription ...interface{}) bool {
-	c.So(res.Stdout(), ShouldContainSubstring, regexp)
-	return true
-	//return gomega.ExpectWithOffset(1, res.Stdout()).To(
-	//	gomega.MatchRegexp(regexp), optionalDescription...)
+func (res *CmdRes) ExpectMatchesRegexp(regexp string, optionalDescription ...interface{}) bool {
+	if ShouldContainSubstring(res.Stdout(), regexp) == "" {
+		return true
+	}
+	return false
 }
 
 // ExpectContainsFilterLine applies the provided JSONPath filter to each line
