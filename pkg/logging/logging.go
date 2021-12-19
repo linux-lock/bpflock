@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -97,6 +98,15 @@ func GetLogSubsys(subsys string) *logrus.Entry {
 // Sets the ebpf program loffer and returns a new log entry
 func GetLogBpfsubsys(bpfprog string) *logrus.Entry {
 	return DefaultLogger.WithField(logfields.LogBpfSubsys, bpfprog)
+}
+
+// SetLogOutput change the DefaultLogger output
+func SetLogOutput(out io.Writer) {
+	DefaultLogger.SetOutput(out)
+}
+
+func ResetLogOutput() {
+	DefaultLogger.SetOutput(os.Stdout)
 }
 
 // SetLogLevel updates the DefaultLogger with a new logrus.Level
