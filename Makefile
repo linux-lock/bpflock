@@ -68,12 +68,12 @@ govet: ## Run go vet on Go source files of this repository.
 gofmt: ## Run go fmt on Go source files in the repository.
 	for pkg in $(GOFILES); do $(GO) fmt $$pkg; done
 
-.PHONY: check-code
-check-code: gofmt govet ## Run checks on code
-
 .PHONY: test
 test: ## Run unit tests
 	$(GO) test -v -race $(TESTPACKAGES)
+
+.PHONY: check-code
+check-code: gofmt govet test ## Run checks on code
 
 .PHONY: integration
 integration: check-code bpflock-integration ## Build bpflock-integration tests docker image and run the tests.
