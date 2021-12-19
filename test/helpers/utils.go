@@ -186,9 +186,8 @@ func CreateReportDirectory(testname string) (string, error) {
 	return testPath, err
 }
 
-// CreateLogFile creates the ReportDirectory if it is not present, writes the
-// given data to the given filename.
-func CreateLogFile(testname string, filename string, data []byte) error {
+// CreateLogFile creates the ReportDirectory if it is not present.
+func CreateLogFile(testname string, filename string) error {
 	path, err := CreateReportDirectory(testname)
 	if err != nil {
 		log.WithError(err).Errorf("ReportDirectory cannot be created")
@@ -196,7 +195,31 @@ func CreateLogFile(testname string, filename string, data []byte) error {
 	}
 
 	finalPath := filepath.Join(path, filename)
-	return os.WriteFile(finalPath, data, LogPerm)
+	f, err := os.OpenFile(finalPath, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, LogPerm)
+	if err != nil {
+		log.WithError(err).Errorf("OpenFile '%s' failed", finalPath)
+		return err
+	}
+
+	f.Close()
+	return nil
+}
+
+func GetLogFile(testname string, filename string) (*os.File, error) {
+	path, err := CreateReportDirectory(testname)
+	if err != nil {
+		log.WithError(err).Errorf("ReportDirectory cannot be created")
+		return nil, err
+	}
+
+	finalPath := filepath.Join(path, filename)
+	f, err := os.OpenFile(finalPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, LogPerm)
+	if err != nil {
+		log.WithError(err).Errorf("OpenFile '%s' failed", finalPath)
+		return nil, err
+	}
+
+	return f, nil
 }
 
 // WriteToReportFile writes data to filename. It appends to existing files.
@@ -207,12 +230,13 @@ func WriteToReportFile(data []byte, testname string, filename string) error {
 		return err
 	}
 
+	finalPath := filepath.Join(testPath, filename)
 	err = WriteOrAppendToFile(
-		filepath.Join(testPath, filename),
+		finalPath,
 		data,
 		LogPerm)
 	if err != nil {
-		log.WithError(err).Errorf("cannot create monitor log file %s", filename)
+		log.WithError(err).Errorf("cannot create log file %s", finalPath)
 		return err
 	}
 	return nil
