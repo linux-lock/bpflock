@@ -4,7 +4,7 @@
 
 #### This is a Work In Progress:
 
-* `bpflock` is currently in experimental stage and some BPF programs are being updated.
+* bpflock is currently in experimental stage and some BPF programs are being updated.
 
 * Programs will be updated soon to use [Cilium ebpf library](https://github.com/cilium/ebpf/) and turned into a small daemon.
 
@@ -13,13 +13,13 @@
 * [1. Introduction](https://github.com/linux-lock/bpflock#1-introduction)
   - [1.1 Security features](https://github.com/linux-lock/bpflock#11-security-features)
   - [1.2 Semantics](https://github.com/linux-lock/bpflock#12-semantics)
-* [2. Deployment]
+* [2. Deployment](https://github.com/linux-lock/bpflock#2-deployment)
 * [3. Build](https://github.com/linux-lock/bpflock#3-build)
 
 
 ## 1. Introduction
 
-`bpflock` combines multiple bpf independent programs to restrict access to a wide range of Linux features. Only programs like systemd, container managers or other containers that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access all Linux kernel features, other tasks and containers will be restricted or completely blocked.
+bpflock combines multiple bpf independent programs to restrict access to a wide range of Linux features. Only programs like systemd, container managers or other containers that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access all Linux kernel features, other tasks and containers will be restricted or completely blocked.
 
 bpflock protects Linux machines using a system wide approach taking advantage of [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html).
 
@@ -28,7 +28,7 @@ Note: bpflock is able to restrict root access to some features, however it does 
 
 ## 1.1 Security features
 
-`bpflock` bpf programs offer multiple security protections to restrict access to the following features:
+bpflock bpf programs offer multiple security protections to restrict access to the following features:
 
 * [Hardware additions](https://github.com/linux-lock/bpflock/tree/main/doc/hardware-additions.md)
   - [USB additions protection](https://github.com/linux-lock/bpflock/tree/main/doc/hardware-additions.md#1-usb-additions-protection)
@@ -63,7 +63,7 @@ The semantic of all features is:
 
 ## 2. Deployment
 
-bpflock needs a `5.15` with the following configuration:
+bpflock needs a `5.15` kernel with the following configuration:
 
 ```code
 CONFIG_DEBUG_INFO=y
