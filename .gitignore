@@ -60,6 +60,7 @@ test/*.json
 test/*.log
 test/bpf/_results
 test/*tmp
+test/runtime/test_results/
 
 # Emacs backup files
 *~
