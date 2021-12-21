@@ -1,4 +1,4 @@
-# `bpflock` - Lock Linux machines
+# bpflock - Lock Linux machines
 
 `bpflock` - eBPF driven security for locking and auditing Linux machines.
 
@@ -11,34 +11,29 @@
 ## Sections
 
 * [1. Introduction](https://github.com/linux-lock/bpflock#1-introduction)
-* - [1.1 Security features](https://github.com/linux-lock/bpflock#11-security-features)
+  - [1.1 Security features](https://github.com/linux-lock/bpflock#11-security-features)
   - [1.2 Semantics](https://github.com/linux-lock/bpflock#12-semantics)
-* [2. Build](https://github.com/linux-lock/bpflock#2-build)
-* [4. Deployment]
+* [2. Deployment]
+* [3. Build](https://github.com/linux-lock/bpflock#3-build)
 
 
 ## 1. Introduction
 
-`bpflock` is designed to work along side, init programs, systemd or container managers to protect Linux machines using a system wide approach. The `"plan"` is to make it usable on kubernetes deployments, servers, Linux-IoT devices, and work stations.
+`bpflock` combines multiple bpf independent programs to restrict access to a wide range of Linux features. Only programs like systemd, container managers or other containers that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access all Linux kernel features, other tasks and containers will be restricted or completely blocked.
 
-`bpflock` combines multiple bpf independent programs to restrict access to a wide range of Linux features, only services like init, systemd or container managers that run in the initial [mnt namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access all Linux kernel features, other tasks including containers that run on their own namespaces will be
-restricted or completely blocked.
+bpflock protects Linux machines using a system wide approach taking advantage of [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html).
 
-`bpflock` uses [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html) to implement its security features.
-
-Note: `bpflock` is able to restrict root access to some features, however it does not protect against evil root users. Such users are able to disable `bpflock` if `/sys` file system is writable.
+Note: bpflock is able to restrict root access to some features, however it does not protect against evil root users.
 
 
 ## 1.1 Security features
 
-`bpflock` bpf programs offer multiple security protections and are able to restrict access to the following features:
+`bpflock` bpf programs offer multiple security protections to restrict access to the following features:
 
 * [Hardware additions](https://github.com/linux-lock/bpflock/tree/main/doc/hardware-additions.md)
-
   - [USB additions protection](https://github.com/linux-lock/bpflock/tree/main/doc/hardware-additions.md#1-usb-additions-protection)
 
 * [Memory protections](https://github.com/linux-lock/bpflock/tree/main/doc/memory-protections.md)
-
   - [Kernel image lock down](https://github.com/linux-lock/bpflock/tree/main/doc/memory-protections.md#1-kernel-image-lock-down)
   - [Kernel modules protection](https://github.com/linux-lock/bpflock/tree/main/doc/memory-protections.md#2-kernel-modules-protections)
   - [BPF protection](https://github.com/linux-lock/bpflock/tree/main/doc/memory-protections.md#3-bpf-protection)
@@ -53,31 +48,42 @@ Note: `bpflock` is able to restrict root access to some features, however it doe
 
 ### 1.2 Semantics
 
-The semantic of all programs is:
+The semantic of all features is:
 
 * Permission: each program supports three different permission models.
-  - `allow|none`: access is allowed.
-  - `deny`: access is denied for all processes.
-  - `restrict`: access is allowed only from processes that are in the initial mnt and other namespaces. This allows init, systemd and container managers to properly access all functionality.
-
+  - `allow|none` : access is allowed.
+  - `restrict` : access is allowed only from processes that are in the initial pid namespace.
+  - `deny` : access is denied for all processes.
 
 * Allowed or blocked operations/commands:
-  when a program runs under the allow or restrict permission model, it can defines a list of allowed or blocked commands.
-  - `allow`: comma-separated list of allowed commands.
-  - `block`: comma-separated list of blocked commands.
+  when a program runs under the `allow` or `restrict` permission model, a list of allowed or blocked commands can be specified with:
+  - `allow` : comma-separated list of allowed operations.
+  - `block` : comma-separated list of blocked operations.
 
 
-## 2. Build
+## 2. Deployment
 
-First we need the right dependencies:
+bpflock needs a `5.15` with the following configuration:
 
-* [libbpf](https://github.com/linux-lock/bpflock#21-libbpf)
-* [kernel version 5.15](https://github.com/linux-lock/bpflock#22-kernel)
-* [Libraries and compilers](https://github.com/linux-lock/bpflock#23-libraries-and-compilers)
-* [Build binaries](https://github.com/linux-lock/bpflock#24-build-binaries)
+```code
+CONFIG_DEBUG_INFO=y
+CONFIG_DEBUG_INFO_BTF=y
+CONFIG_KPROBES=y
+CONFIG_LSM="...,bpf"
+CONFIG_BPF_LSM=y
+```
 
 
-### 2.1 libbpf
+* [Docker deployment](https://github.com/linux-lock/bpflock/blob/master/doc/deploy-docker.md)
+
+
+## 3. Build
+
+bpflock uses [docker BuildKit](https://docs.docker.com/develop/develop-images/build_enhancements/) to build and [Golang](https://go.dev/doc/install) for running tests.
+
+
+
+### 3.1 libbpf
 
 This repository uses libbpf as a git-submodule. After cloning this repository you need to run the command:
 
@@ -91,19 +97,7 @@ If you want submodules to be part of the clone, you can use this command:
 git clone --recurse-submodules https://github.com/linux-lock/bpflock
 ```
 
-### 2.2 kernel
-
-Tested on a kernel 5.15.0-rc5+ (will pin to 5.15 when released) with the following options:
-
-```code
-CONFIG_DEBUG_INFO=y
-CONFIG_DEBUG_INFO_BTF=y
-CONFIG_KPROBES=y
-CONFIG_LSM="...,bpf"
-CONFIG_BPF_LSM=y
-```
-
-### 2.3 Libraries and compilers
+### 3.2 Libraries and compilers
 
 #### Ubuntu
 
@@ -114,7 +108,7 @@ To build install the following packages:
         zlib1g-dev libelf-dev libfl-dev
   ```
 
-### 2.4 Build binaries
+### 3.3 Build binaries
 
 Get libbpf if not:
 ```
@@ -129,5 +123,3 @@ make
 All build binaries and libraries will be produced in `build/dist/` directory.
 
 Current build process was inspired from: https://github.com/iovisor/bcc/tree/master/libbpf-tools
-
-## 4. Deployment
