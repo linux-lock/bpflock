@@ -22,4 +22,7 @@ const (
 
 	// NodeName is a human readable name for the node
 	NodeName = "nodeName"
+
+	// Path is a filesystem path. It can be a file or directory.
+	Path = "file-path"
 )
