@@ -134,3 +134,7 @@ Current build process was inspired from: https://github.com/iovisor/bcc/tree/mas
 ## Credits
 
 bpflock uses lot of resources including source code from the [Cilium](https://github.com/cilium/cilium) project.
+
+## License
+
+The bpflock user space components are licensed under the [Apache License, Version 2.0](https://github.com/linux-lock/bpflock/blob/main/LICENSE). The BPF code where it is noted is licensed under the [General Public License, Version 2.0](https://github.com/linux-lock/bpflock/blob/main/src/COPYING).
