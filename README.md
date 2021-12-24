@@ -19,16 +19,16 @@
 
 ## 1. Introduction
 
-bpflock combines multiple bpf independent programs to restrict access to a wide range of Linux features. Only programs like systemd, container managers or other containers that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access all Linux kernel features, other tasks and containers will be restricted or completely blocked.
+bpflock combines multiple bpf independent programs to restrict access to a various range of Linux features. Only programs like systemd, container managers or other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access those features, other tasks and containers will be restricted or completely blocked.
 
-bpflock protects Linux machines using a system wide approach taking advantage of [LSM BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html).
+bpflock protects Linux machines using a system wide approach taking advantage of [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html).
 
 Note: bpflock is able to restrict root access to some features, however it does not protect against evil root users.
 
 
 ## 1.1 Security features
 
-bpflock bpf programs offer multiple security protections to restrict access to the following features:
+bpflock bpf programs offer multiple security protections to restrict access to the following Linux features:
 
 * [Hardware additions](https://github.com/linux-lock/bpflock/tree/main/doc/hardware-additions.md)
   - [USB additions protection](https://github.com/linux-lock/bpflock/tree/main/doc/hardware-additions.md#1-usb-additions-protection)
@@ -44,19 +44,25 @@ bpflock bpf programs offer multiple security protections to restrict access to t
   - Read-only root filesystem protection
   - sysfs protection
 
-* [Namespaces protections](https://github.com/linux-lock/bpflock#34-namespaces-protections)
+* [Linux Namespaces protections](https://github.com/linux-lock/bpflock#34-namespaces-protections)
+
+* Network protections
+
+  - bpflock does not include network protections and will probably not. For a Cloud Native protection [Cilium](https://github.com/cilium/cilium) and other CNI related solutions are by far better. For other deployments, classic netfilter solutions should just work at the moment.
+
 
 ### 1.2 Semantics
 
 The semantic of all features is:
 
-* Permission: each program supports three different permission models.
+* `Permission`: each program supports three different permission models.
   - `allow|none` : access is allowed.
   - `restrict` : access is allowed only from processes that are in the initial pid namespace.
   - `deny` : access is denied for all processes.
 
-* Allowed or blocked operations/commands:
-  when a program runs under the `allow` or `restrict` permission model, a list of allowed or blocked commands can be specified with:
+* `Allowed` or `blocked` operations/commands:
+
+  When a program runs under the `allow` or `restrict` permission models, a list of allowed or blocked commands can be specified with:
   - `allow` : comma-separated list of allowed operations.
   - `block` : comma-separated list of blocked operations.
 
@@ -123,3 +129,8 @@ make
 All build binaries and libraries will be produced in `build/dist/` directory.
 
 Current build process was inspired from: https://github.com/iovisor/bcc/tree/master/libbpf-tools
+
+
+## Credits
+
+bpflock uses lot of resources including source code from the [Cilium](https://github.com/cilium/cilium) project.
