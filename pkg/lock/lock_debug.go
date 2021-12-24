@@ -14,8 +14,8 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/cilium/cilium/pkg/logging"
-	"github.com/cilium/cilium/pkg/logging/logfields"
+	"github.com/linux-lock/bpflock/pkg/logging"
+	"github.com/linux-lock/bpflock/pkg/logging/logfields"
 
 	"github.com/sasha-s/go-deadlock"
 	"github.com/sirupsen/logrus"
