@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/cilium/cilium/pkg/checker"
-	"github.com/cilium/cilium/pkg/logging"
-	"github.com/cilium/cilium/pkg/logging/logfields"
+	"github.com/linux-lock/bpflock/pkg/logging"
+	"github.com/linux-lock/bpflock/pkg/logging/logfields"
 
 	"gopkg.in/check.v1"
 )
