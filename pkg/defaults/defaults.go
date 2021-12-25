@@ -65,6 +65,9 @@ const (
 	// DefaultMapRoot is the default path where BPFFS should be mounted
 	DefaultMapRoot = "/sys/fs/bpf"
 
+	// DefaultMapPrefix
+	DefaultMapPrefix = "bpflock"
+
 	// ClientConnectTimeout is the time the bpflock agent client is
 	// (optionally) waiting before returning an error.
 	ClientConnectTimeout = 30 * time.Second
