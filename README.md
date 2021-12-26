@@ -19,11 +19,11 @@
 
 ## 1. Introduction
 
-bpflock combines multiple bpf independent programs to restrict access to a various range of Linux features. Only programs like systemd, container managers or other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access those features, other tasks and containers will be restricted or completely blocked.
+bpflock combines multiple bpf programs to restrict access to a various range of Linux features. Only programs like systemd, container managers or other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access those features, other tasks and containers will be restricted or completely blocked.
 
 bpflock protects Linux machines using a system wide approach taking advantage of [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html).
 
-Note: bpflock is able to restrict root access to some features, however it does not protect against evil root users.
+Note: bpflock is able to restrict root access to some features, however it does not protect against evil root users that can disable it.
 
 
 ## 1.1 Security features
@@ -69,18 +69,28 @@ The semantic of all features is:
 
 ## 2. Deployment
 
-bpflock needs a `5.15` kernel with the following configuration:
 
-```code
-CONFIG_DEBUG_INFO=y
-CONFIG_DEBUG_INFO_BTF=y
-CONFIG_KPROBES=y
-CONFIG_LSM="...,bpf"
-CONFIG_BPF_LSM=y
-```
+### 2.1 Prerequisites
+
+bpflock needs the following:
+
+* Linux kernel version >= 5.15 with the following configuration:
+
+  ```code
+  CONFIG_BPF_SYSCALL=y
+  CONFIG_DEBUG_INFO=y
+  CONFIG_DEBUG_INFO_BTF=y
+  CONFIG_KPROBES=y
+  CONFIG_LSM="...,bpf"
+  CONFIG_BPF_LSM=y
+  ```
+
+* [BTF](https://www.kernel.org/doc/html/latest/bpf/btf.html) at `/sys/kernel/btf/vmlinux`
 
 
-* [Docker deployment](https://github.com/linux-lock/bpflock/blob/master/doc/deploy-docker.md)
+### 2.2 Docker deployment
+
+(https://github.com/linux-lock/bpflock/blob/master/doc/deploy-docker.md)
 
 
 ## 3. Build
