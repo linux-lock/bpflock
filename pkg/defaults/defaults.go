@@ -42,6 +42,9 @@ const (
 	// BpfDir is the default path for template files relative to LibDir
 	BpfDir = "bpf"
 
+	// ConfigurationPath
+	ConfigurationPath = "/etc/bpflock/"
+
 	// ProgramLibraryPath is the default path for the bpflock libraries and programs
 	ProgramLibraryPath = "/usr/lib/bpflock"
 
