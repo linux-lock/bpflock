@@ -21,7 +21,6 @@ DIST_BINDIR := $(abspath ./build/dist/bin)
 DIST_BPFDIR := $(abspath ./build/dist/bin/bpf)
 BUILDLIB := $(abspath ./build/libs/)
 DIST_LIBDIR := $(abspath ./build/dist/libs)
-BPFTOOL ?= $(abspath ./tools/bpftool)
 LIBBPF ?= $(abspath ./src/cc/libbpf/)
 
 INSTALL ?= install
@@ -29,10 +28,12 @@ PREFIX ?= /usr/
 BINDIR ?= $(PREFIX)bin
 LIBDIR ?= $(PREFIX)lib
 
-ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/')
+ARCH := $(shell uname -m | sed -E 's/x86_64|x86/amd64/' | sed -E 's/aarch64/arm64/')
 ifeq ($(ARCH),)
 $(error " testError: architecture $(ARCH) is not supported yet. Please open an issue")
 endif
+
+BPFTOOL ?= $(abspath ./tools/$(ARCH)/bpftool)
 
 # Git and Version
 VERSION = $(shell cat $(dir $(lastword $(MAKEFILE_LIST)))/VERSION)
