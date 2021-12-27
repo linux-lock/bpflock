@@ -35,6 +35,7 @@ pre-build:
 	$(info MKDIR build directories)
 	@mkdir -p $(DIST_DIR)
 	@mkdir -p $(DIST_BINDIR)
+	@mkdir -p $(DIST_BPFDIR)
 	@mkdir -p $(BUILDLIB)
 	@mkdir -p $(DIST_LIBDIR)
 
