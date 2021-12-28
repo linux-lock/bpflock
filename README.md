@@ -2,11 +2,7 @@
 
 `bpflock` - eBPF driven security for locking and auditing Linux machines.
 
-#### This is a Work In Progress:
-
-* bpflock is currently in experimental stage and some BPF programs are being updated.
-
-* Programs will be updated soon to use [Cilium ebpf library](https://github.com/cilium/ebpf/) and turned into a small daemon.
+Note: bpflock is currently in **experimental stage**, BPF programs are being updated, others will be removed or updated to use [Cilium ebpf library](https://github.com/cilium/ebpf/).
 
 ## Sections
 
@@ -69,7 +65,6 @@ The semantic of all features is:
 
 ## 2. Deployment
 
-
 ### 2.1 Prerequisites
 
 bpflock needs the following:
@@ -85,13 +80,14 @@ bpflock needs the following:
   CONFIG_BPF_LSM=y
   ```
 
-* [BTF](https://www.kernel.org/doc/html/latest/bpf/btf.html) at `/sys/kernel/btf/vmlinux`
+* Obviously a BTF enabled kernel.
 
 
 ### 2.2 Docker deployment
 
-(https://github.com/linux-lock/bpflock/blob/master/doc/deploy-docker.md)
-
+```bash
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged -v /sys/kernel/security:/sys/kernel/security -v /sys/fs/bpf:/sys/fs/bpf linux-lock/bpflock:latest
+```
 
 ## 3. Build
 
