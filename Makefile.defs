@@ -28,12 +28,11 @@ PREFIX ?= /usr/
 BINDIR ?= $(PREFIX)bin
 LIBDIR ?= $(PREFIX)lib
 
-ARCH := $(shell uname -m | sed -E 's/x86_64|x86/amd64/' | sed -E 's/aarch64/arm64/')
+machine := $(shell uname -m)
+ARCH := $(shell echo "$(machine)" | sed -E 's/x86_64|x86/amd64/' | sed -E 's/aarch64/arm64/')
 ifeq ($(ARCH),)
-$(error " testError: architecture $(ARCH) is not supported yet. Please open an issue")
+$(error " testError: architecture $(machine) is not supported yet. Please open an issue")
 endif
-
-BPFTOOL ?= $(abspath ./tools/$(ARCH)/bpftool)
 
 # Git and Version
 VERSION = $(shell cat $(dir $(lastword $(MAKEFILE_LIST)))/VERSION)
@@ -51,6 +50,9 @@ FULL_BUILD_VERSION = $(VERSION) $(GIT_VERSION)
 
 # LLVM VERSION
 LLVM_VERSION="12"
+
+# BPFTOOL
+BPFTOOL ?= $(abspath ./tools/$(ARCH)/bpftool)
 
 # Go environment
 GO ?= $(shell command -v go 2> /dev/null)
