@@ -134,12 +134,11 @@ make
 
 All build binaries and libraries will be produced in `build/dist/` directory.
 
-Current build process was inspired from: https://github.com/iovisor/bcc/tree/master/libbpf-tools
-
 
 ## Credits
 
-bpflock uses lot of resources including source code from the [Cilium](https://github.com/cilium/cilium) project.
+bpflock uses lot of resources including source code from the [Cilium](https://github.com/cilium/cilium) and
+[bcc](https://github.com/iovisor/bcc) projects.
 
 ## License
 
