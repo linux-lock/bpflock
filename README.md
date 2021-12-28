@@ -86,7 +86,7 @@ bpflock needs the following:
 ### 2.2 Docker deployment
 
 ```bash
-docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged -v /sys/kernel/security:/sys/kernel/security -v /sys/fs/bpf:/sys/fs/bpf linux-lock/bpflock:latest
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged -v /sys/kernel/security:/sys/kernel/security -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock:latest
 ```
 
 ## 3. Build
