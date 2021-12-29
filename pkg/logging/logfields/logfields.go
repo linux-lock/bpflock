@@ -25,4 +25,16 @@ const (
 
 	// Path is a filesystem path. It can be a file or directory.
 	Path = "file-path"
+
+	// Line is a line number within a file
+	Line = "line"
+
+	// StartTime is the start time of an event
+	StartTime = "startTime"
+
+	// EndTime is the end time of an event
+	EndTime = "endTime"
+
+	// Duration is the duration of a measured operation
+	Duration = "duration"
 )
