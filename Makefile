@@ -47,8 +47,8 @@ clean: clean-bpf-tools clean-images ## Remove bpflock docker images including bu
 .PHONY: container-bpf-tools
 container-bpf-tools: clean-bpf-tools pre-build | defined-BASE_IMAGE ## Builds bpf tools using libbpf inside container.
 	$(info MAKE: start building cbpf tools inside container)
-	$(info MAKE -C src all)
-	@$(MAKE) -C $(shell pwd)/src all
+	$(info MAKE -C bpf all)
+	@$(MAKE) -C $(shell pwd)/bpf all
 
 
 .PHONY: clean-bpf-tools

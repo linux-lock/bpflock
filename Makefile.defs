@@ -21,7 +21,7 @@ DIST_BINDIR := $(abspath ./build/dist/bin)
 DIST_BPFDIR := $(abspath ./build/dist/bin/bpf)
 BUILDLIB := $(abspath ./build/libs/)
 DIST_LIBDIR := $(abspath ./build/dist/libs)
-LIBBPF ?= $(abspath ./src/cc/libbpf/)
+LIBBPF ?= $(abspath ./bpf/cc/libbpf/)
 
 INSTALL ?= install
 PREFIX ?= /usr/
