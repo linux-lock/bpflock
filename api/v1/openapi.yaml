@@ -1,0 +1,121 @@
+---
+swagger: "2.0"
+info:
+  description: "bpflock"
+  version: "v1beta"
+  title: "bpflock API"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+basePath: "/v1"
+schemes:
+- "http"
+consumes:
+- "application/json"
+produces:
+- "application/json"
+paths:
+  /healthz:
+    get:
+      tags:
+      - "daemon"
+      summary: "Get health of bpflock daemon"
+      description: "Returns health and status information of the bpflock daemon."
+      parameters:
+      - name: "brief"
+        in: "header"
+        description: "Brief will return a brief representation of the bpflock status."
+        required: false
+        type: "boolean"
+        x-exportParamName: "Brief"
+        x-optionalDataType: "Bool"
+      responses:
+        "200":
+          description: "Success"
+          schema:
+            $ref: "#/definitions/StatusResponse"
+  /config:
+    get:
+      tags:
+      - "daemon"
+      summary: "Get configuration of bpflock daemon"
+      description: "Returns the configuration of the bpflock daemon."
+      parameters: []
+      responses:
+        "200":
+          description: "Success"
+          schema:
+            $ref: "#/definitions/DaemonConfiguration"
+definitions:
+  StatusResponse:
+    type: "object"
+    properties:
+      bpflock:
+        $ref: "#/definitions/Status"
+    description: "Health and status information of daemon"
+    example:
+      bpflock:
+        msg: "msg"
+        state: "Ok"
+  Status:
+    type: "object"
+    properties:
+      state:
+        type: "string"
+        description: "State the component is in"
+        enum:
+        - "Ok"
+        - "Warning"
+        - "Failure"
+        - "Disabled"
+      msg:
+        type: "string"
+        description: "Human readable status/error/warning message"
+    description: "Status of an individual component"
+    example:
+      msg: "msg"
+      state: "Ok"
+  ConfigurationMap:
+    type: "object"
+    description: "Map of configuration key/value pairs."
+    additionalProperties:
+      type: "string"
+  DaemonConfigurationSpec:
+    type: "object"
+    properties:
+      options:
+        $ref: "#/definitions/ConfigurationMap"
+    description: "The controllable and changeable configuration of the daemon."
+    example:
+      options: {}
+  DaemonConfigurationStatus:
+    type: "object"
+    properties:
+      applied:
+        $ref: "#/definitions/DaemonConfigurationSpec"
+      immutable:
+        $ref: "#/definitions/ConfigurationMap"
+      daemonConfigurationMap:
+        description: "Config map which contains all the active daemon configurations"
+    description: "Response to a daemon configuration request."
+    example:
+      applied:
+        options: {}
+      daemonConfigurationMap: ""
+  DaemonConfiguration:
+    type: "object"
+    properties:
+      spec:
+        $ref: "#/definitions/DaemonConfigurationSpec"
+      status:
+        $ref: "#/definitions/DaemonConfigurationStatus"
+    description: "Response to a daemon configuration request."
+    example:
+      spec:
+        options: {}
+      status:
+        applied:
+          options: {}
+        daemonConfigurationMap: ""
+x-schemes:
+- "unix"
