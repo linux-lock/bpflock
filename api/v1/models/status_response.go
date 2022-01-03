@@ -11,6 +11,7 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
 )
 
 // StatusResponse Health and status information of daemon
@@ -21,6 +22,9 @@ type StatusResponse struct {
 
 	// bpflock
 	Bpflock *Status `json:"bpflock,omitempty"`
+
+	// List of stale information in the status
+	Stale map[string]strfmt.DateTime `json:"stale,omitempty"`
 }
 
 // Validate validates this status response
@@ -28,6 +32,10 @@ func (m *StatusResponse) Validate(formats strfmt.Registry) error {
 	var res []error
 
 	if err := m.validateBpflock(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateStale(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -51,6 +59,22 @@ func (m *StatusResponse) validateBpflock(formats strfmt.Registry) error {
 			}
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (m *StatusResponse) validateStale(formats strfmt.Registry) error {
+	if swag.IsZero(m.Stale) { // not required
+		return nil
+	}
+
+	for k := range m.Stale {
+
+		if err := validate.FormatOf("stale"+"."+k, "body", "date-time", m.Stale[k].String(), formats); err != nil {
+			return err
+		}
+
 	}
 
 	return nil
