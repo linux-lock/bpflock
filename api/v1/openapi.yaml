@@ -52,11 +52,18 @@ definitions:
     properties:
       bpflock:
         $ref: "#/definitions/Status"
+      stale:
+        description: List of stale information in the status
+        type: object
+        additionalProperties:
+          description: Timestamp when the probe was started
+          type: string
+          format: date-time
     description: "Health and status information of daemon"
     example:
       bpflock:
         msg: "msg"
-        state: "Ok"
+        state: "Ok" 
   Status:
     type: "object"
     properties:
