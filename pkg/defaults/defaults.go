@@ -10,16 +10,10 @@ import (
 
 const (
 	// AgentHealthPort is the default value for option.AgentHealthPort
-	AgentHealthPort = 9876
+	AgentHealthPort = 19876
 
 	// GopsPortAgent is the default value for option.GopsPort in the agent
-	GopsPortAgent = 9890
-
-	// GopsPortOperator is the default value for option.GopsPort in the operator
-	GopsPortOperator = 9891
-
-	// GopsPortApiserver is the default value for option.GopsPort in the apiserver
-	GopsPortApiserver = 9892
+	GopsPortAgent = 19890
 
 	// RuntimePath is the default path to the runtime directory
 	RuntimePath = "/var/run/bpflock"
