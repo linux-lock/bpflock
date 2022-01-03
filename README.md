@@ -2,7 +2,7 @@
 
 `bpflock` - eBPF driven security for locking and auditing Linux machines.
 
-Note: bpflock is currently in **experimental stage**, BPF programs are being updated, others will be removed or updated to use [Cilium ebpf library](https://github.com/cilium/ebpf/).
+Note: bpflock is currently in **experimental stage**, security semantics may change, some BPF programs will be updated to use [Cilium ebpf library](https://github.com/cilium/ebpf/).
 
 ## Sections
 
@@ -12,15 +12,13 @@ Note: bpflock is currently in **experimental stage**, BPF programs are being upd
 * [2. Deployment](https://github.com/linux-lock/bpflock#2-deployment)
 * [3. Build](https://github.com/linux-lock/bpflock#3-build)
 
-
 ## 1. Introduction
 
-bpflock combines multiple bpf programs to restrict access to a various range of Linux features. Only programs like systemd, container managers or other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access those features, other tasks and containers will be restricted or completely blocked.
+bpflock combines multiple bpf programs to restrict access to a various range of Linux features. Only programs like systemd, container managers and other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access those features. Containers that run on their own namespace will be restricted or completely blocked. The restriction will be augmented in the future to perform per cgroupv2 filtering.
 
 bpflock protects Linux machines using a system wide approach taking advantage of [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html).
 
-Note: bpflock is able to restrict root access to some features, however it does not protect against evil root users that can disable it.
-
+Note: even bpflock is able to restrict root access to access certain Linux features, it does not protect against evil root users that can disable it.
 
 ## 1.1 Security features
 
@@ -46,21 +44,22 @@ bpflock bpf programs offer multiple security protections to restrict access to t
 
   - bpflock does not include network protections and will probably not. For a Cloud Native protection [Cilium](https://github.com/cilium/cilium) and other CNI related solutions are by far better. For other deployments, classic netfilter solutions should just work at the moment.
 
-
 ### 1.2 Semantics
 
-The semantic of all features is:
+bpflock tries to keep the security semantics simple without introducing complex policies. It uses a simple `permission` model that takes the following values:
 
-* `Permission`: each program supports three different permission models.
-  - `allow|none` : access is allowed.
-  - `restrict` : access is allowed only from processes that are in the initial pid namespace.
+* `permission`: each bpf program supports three different permission models.
+  - `allow|none` : access is allowed. It can be used to log security events.
+  - `restrict` : access is restricted. Only processes that are in the initial pid namespace.
   - `deny` : access is denied for all processes.
 
 * `Allowed` or `blocked` operations/commands:
 
-  When a program runs under the `allow` or `restrict` permission models, a list of allowed or blocked commands can be specified with:
-  - `allow` : comma-separated list of allowed operations.
-  - `block` : comma-separated list of blocked operations.
+  Depending on the `permission` model a list of allowed or blocked commands can be specified with:
+  - `allow` : comma-separated list of allowed operations. Valid under `restrict` and `deny` permissions.
+  - `block` : comma-separated list of blocked operations. Valid under `restrict` permission.
+
+For configuration examples check [bpflock configuration examples](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/README.md)
 
 
 ## 2. Deployment
@@ -82,7 +81,6 @@ bpflock needs the following:
 
 * Obviously a BTF enabled kernel.
 
-
 ### 2.2 Docker deployment
 
 ```bash
@@ -92,8 +90,6 @@ docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged -v /s
 ## 3. Build
 
 bpflock uses [docker BuildKit](https://docs.docker.com/develop/develop-images/build_enhancements/) to build and [Golang](https://go.dev/doc/install) for running tests.
-
-
 
 ### 3.1 libbpf
 
@@ -133,7 +129,6 @@ make
 ```
 
 All build binaries and libraries will be produced in `build/dist/` directory.
-
 
 ## Credits
 
