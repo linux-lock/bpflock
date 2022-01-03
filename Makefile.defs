@@ -58,24 +58,42 @@ BPFTOOL ?= $(abspath ./tools/$(ARCH)/bpftool)
 GO ?= $(shell command -v go 2> /dev/null)
 
 ifdef GO
-GOARCH ?= $(shell $(GO) env GOARCH)
-GO_BUILD = CGO_ENABLED=0 $(GO) build
 
+# go build/test/clean flags
+# these are declared here so they are treated explicitly
+# as non-immediate variables
+GO_BUILD_FLAGS =
+GO_TEST_FLAGS =
+GO_CLEAN_FLAGS =
+GO_BUILD_LDFLAGS =
+# go build/test -tags values
+GO_TAGS_FLAGS = osusergo
+
+GOARCH ?= $(shell $(GO) env GOARCH)
+CGO_CC =
 ifeq ($(GOARCH),arm64)
     CGO_CC = CC=aarch64-linux-gnu-gcc
 endif
-GO_BUILD_WITH_CGO = CGO_ENABLED=1 $(CGO_CC) $(GO) build
+
+GO_BUILD_LDFLAGS += -X "github.com/cilium/cilium/pkg/version.bpflockVersion=$(FULL_BUILD_VERSION)"
 
 ifeq ($(NOSTRIP),)
     GO_BUILD_LDFLAGS += -s -w
 endif
 
-GOFILES_EVAL := $(subst _$(ROOT_DIR)/,,$(shell $(GO) list -find -e ./...))
-GOFILES ?= $(GOFILES_EVAL)
-TESTPACKAGES := $(shell go list ./... | grep -v "github.com/linux-lock/bpflock/test/runtime")
+GO_BUILD = CGO_ENABLED=0 $(GO) build
+GO_BUILD_WITH_CGO = CGO_ENABLED=1 $(CGO_CC) $(GO) build
+
+GO_BUILD_FLAGS += -ldflags '$(GO_BUILD_LDFLAGS) $(EXTRA_GO_BUILD_LDFLAGS)' -tags=$(call join-with-comma,$(GO_TAGS_FLAGS)) $(EXTRA_GO_BUILD_FLAGS)
+GO_TEST_FLAGS += -tags=$(call join-with-comma,$(GO_TAGS_FLAGS))
 
 GO_BUILD += $(GO_BUILD_FLAGS)
 GO_BUILD_WITH_CGO += $(GO_BUILD_FLAGS)
+
+GO_TEST = $(GO) test $(GO_TEST_FLAGS)
+GO_CLEAN = $(GO) clean $(GO_CLEAN_FLAGS)
+GO_VET = $(GO) vet
+GO_LIST = $(GO) list
 
 endif
 
