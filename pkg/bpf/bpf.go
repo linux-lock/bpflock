@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	bpfProgramsPath = filepath.Join(defaults.ProgramLibraryPath, "bpf")
-	bpftool         = filepath.Join(defaults.ProgramLibraryPath, "bpftool")
+	bpfProgramsPath = filepath.Join(defaults.ProgramLibPath, "bpf")
+	bpftool         = filepath.Join(defaults.ProgramLibPath, "bpftool")
 )
 
 // #rm -fr /sys/fs/bpf/bpflock/$pinnedProg
