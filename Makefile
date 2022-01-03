@@ -4,7 +4,7 @@
 # Copyright 2017-2020 Authors of Cilium
 
 ##@ Default target
-all: bpflock  ## Default builds bpflock docker image.
+all: bpflock-img  ## Default builds bpflock docker image.
 	@echo "Build finished."
 
 # We need this to load in-container related variables
@@ -45,20 +45,25 @@ pre-build:
 	@mkdir -p $(BUILDLIB)
 	@mkdir -p $(DIST_LIBDIR)
 
-clean: clean-bpf-tools clean-images ## Remove bpflock docker images including builder and clean directories.
+clean: clean-in-container clean-images ## Remove bpflock docker images including builder and clean directories.
 
 ##@ Inside container targets
 
 # This builds inside container
 .PHONY: container-bpf-tools
-container-bpf-tools: clean-bpf-tools pre-build | defined-BASE_IMAGE ## Builds bpf tools using libbpf inside container.
+container-bpf-tools: clean-in-container pre-build | defined-BASE_IMAGE ## Builds bpf tools using libbpf inside container.
 	$(info MAKE: start building cbpf tools inside container)
 	$(info MAKE -C bpf all)
 	@$(MAKE) -C $(shell pwd)/bpf all
 
+.PHONY: bpflock-daemon
+bpflock-daemon: pre-build | defined-BASE_IMAGE ## Build bpflock daemon inside container
+	$(info MAKE: start building bpflock daemon inside container)
+	$(info MAKE -C cmd/bpflock/ all)
+	@$(MAKE) -C $(shell pwd)/cmd all
 
-.PHONY: clean-bpf-tools
-clean-bpf-tools: ## Clean bpf-tools build directories.
+.PHONY: clean-in-container
+clean-in-container: ## Clean bpf-tools build directories.
 	@$(RM) -R $(BUILD)
 	$(info Clean bpf-tools build directories)
 
