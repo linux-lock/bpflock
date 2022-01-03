@@ -39,14 +39,14 @@ const (
 	// TemplatePath is the default path for a symlink to a template relative to StateDir/<EPID>
 	TemplatePath = "template.o"
 
-	// BpfDir is the default path for template files relative to LibDir
-	BpfDir = "bpf"
-
 	// ConfigurationPath
 	ConfigurationPath = "/etc/bpflock/"
 
-	// ProgramLibraryPath is the default path for the bpflock libraries and programs
-	ProgramLibraryPath = "/usr/lib/bpflock"
+	// ProgramLibPath is the default path for the bpflock libraries and programs
+	ProgramLibPath = "/usr/lib/bpflock"
+
+	// BpfDir is the default path for bpf programs relative to ProgramLibDir
+	BpfDir = "bpf"
 
 	// VariablePath is the default path to the bpflock variable state directory
 	VariablePath = "/var/lib/bpflock"
@@ -85,4 +85,10 @@ const (
 	// StatusCollectorFailureThreshold is the duration after which a probe
 	// is considered failed
 	StatusCollectorFailureThreshold = 1 * time.Minute
+
+	// EnableIPv4 is the default value for IPv4 enablement
+	EnableIPv4 = true
+
+	// EnableIPv6 is the default value for IPv6 enablement
+	EnableIPv6 = true
 )
