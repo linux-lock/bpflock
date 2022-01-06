@@ -32,7 +32,8 @@ LIBBPF ?= $(abspath ./bpf/cc/libbpf/)
 INSTALL ?= install
 PREFIX ?= /usr/
 BINDIR ?= $(PREFIX)bin
-LIBDIR ?= $(PREFIX)lib
+LIBDIR ?= $(PREFIX)lib/bpflock/
+LIBDIRBPF ?= $(PREFIX)lib/bpflock/bpf
 
 machine := $(shell uname -m)
 ARCH := $(shell echo "$(machine)" | sed -E 's/x86_64|x86/amd64/' | sed -E 's/aarch64/arm64/')
