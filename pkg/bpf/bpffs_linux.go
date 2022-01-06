@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/cilium/cilium/pkg/mountinfo"
+	"github.com/linux-lock/bpflock/pkg/mountinfo"
 	"github.com/linux-lock/bpflock/pkg/components"
 	"github.com/linux-lock/bpflock/pkg/defaults"
 	"github.com/linux-lock/bpflock/pkg/logging"
