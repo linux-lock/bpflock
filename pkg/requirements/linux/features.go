@@ -6,7 +6,6 @@ package linux
 
 import (
 	"os"
-	"path/filepath"
 
 	"github.com/linux-lock/bpflock/pkg/defaults"
 	"github.com/linux-lock/bpflock/pkg/logging"
@@ -41,7 +40,7 @@ func CheckMinRequirements() {
 	if err := os.MkdirAll(globalsDir, defaults.StateDirRights); err != nil {
 		log.WithError(err).WithField(logfields.Path, globalsDir).Fatal("Could not create runtime directory")
 	}
-	if _, err := os.Stat(filepath.Join(option.Config.ProgramLibDir, option.Config.BpfDir)); os.IsNotExist(err) {
+	if _, err := os.Stat(option.Config.BpfDir); os.IsNotExist(err) {
 		log.WithError(err).Fatalf("BPF programs directory was not found.")
 	}
 
