@@ -135,6 +135,12 @@ func initializeFlags() {
 	flags.BoolP(option.DebugArg, "D", false, "Enable debugging mode")
 	option.BindEnv(option.DebugArg)
 
+	flags.Bool(option.EnableIPv4Name, defaults.EnableIPv4, "Enable IPv4 support")
+	option.BindEnv(option.EnableIPv4Name)
+
+	flags.Bool(option.EnableIPv6Name, defaults.EnableIPv6, "Enable IPv6 support")
+	option.BindEnv(option.EnableIPv6Name)
+
 	flags.String(option.VarLibDir, defaults.VariablePath, "Directory path to store runtime environment")
 	option.BindEnv(option.VarLibDir)
 

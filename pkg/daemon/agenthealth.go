@@ -23,10 +23,10 @@ import (
 // endpoint reports the agent health status.
 func (d *Daemon) startAgentHealthHTTPService() {
 	var hosts []string
-	if option.Config.EnableIPv4 {
+	if option.Config.IPv4Enabled() {
 		hosts = append(hosts, "127.0.0.1")
 	}
-	if option.Config.EnableIPv6 {
+	if option.Config.IPv6Enabled() {
 		hosts = append(hosts, "::1")
 	}
 

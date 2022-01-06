@@ -26,7 +26,7 @@ type BpflockVersion struct {
 	AuthorDate string
 }
 
-// ciliumVersion is set to Bpflock's version, revision and git author time reference during build.
+// bpflockVersion is set to Bpflock's version
 var bpflockVersion string
 
 // Version is the complete Bpflock version string including Go version.
