@@ -51,7 +51,7 @@ clean: clean-in-container clean-images ## Remove bpflock docker images including
 
 # This builds inside container
 .PHONY: container-bpf-tools
-container-bpf-tools: clean-in-container pre-build | defined-BASE_IMAGE ## Builds bpf tools using libbpf inside container.
+container-bpf-tools: pre-build | defined-BASE_IMAGE ## Builds bpf tools using libbpf inside container.
 	$(info MAKE: start building cbpf tools inside container)
 	$(info MAKE -C bpf all)
 	@$(MAKE) -C $(shell pwd)/bpf all
@@ -59,7 +59,7 @@ container-bpf-tools: clean-in-container pre-build | defined-BASE_IMAGE ## Builds
 .PHONY: bpflock-daemon
 bpflock-daemon: pre-build | defined-BASE_IMAGE ## Build bpflock daemon inside container
 	$(info MAKE: start building bpflock daemon inside container)
-	$(info MAKE -C cmd/bpflock/ all)
+	$(info MAKE -C cmd all)
 	@$(MAKE) -C $(shell pwd)/cmd all
 
 .PHONY: clean-in-container
