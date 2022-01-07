@@ -144,13 +144,13 @@ func initializeFlags() {
 	flags.String(option.VarLibDir, defaults.VariablePath, "Directory path to store runtime environment")
 	option.BindEnv(option.VarLibDir)
 
-	flags.StringSlice(option.LogDriver, []string{}, "Logging endpoints to use for example syslog")
-	option.BindEnv(option.LogDriver)
+	//flags.StringSlice(option.LogDriver, []string{}, "Logging endpoints to use for example syslog")
+	//option.BindEnv(option.LogDriver)
 
-	flags.Var(option.NewNamedMapOptions(option.LogOpt, &option.Config.LogOpt, nil),
-		option.LogOpt, `Log driver options for bpflock, `+
-			`configmap example for syslog driver: {"syslog.level":"info","syslog.facility":"local5","syslog.tag":"bpflock"}`)
-	option.BindEnv(option.LogOpt)
+	//flags.Var(option.NewNamedMapOptions(option.LogOpt, &option.Config.LogOpt, nil),
+	//	option.LogOpt, `Log driver options for bpflock, `+
+	//		`configmap example for syslog driver: {"syslog.level":"info","syslog.facility":"local5","syslog.tag":"bpflock"}`)
+	//option.BindEnv(option.LogOpt)
 
 	flags.String(option.StateDir, defaults.RuntimePath, "Directory path to store runtime state")
 	option.BindEnv(option.StateDir)
@@ -164,8 +164,8 @@ func initializeFlags() {
 	flags.Int(option.PProfPort, 6060, "Port that the pprof listens on")
 	option.BindEnv(option.PProfPort)
 
-	flags.String(option.PrometheusServeAddr, "", "IP:Port on which to serve prometheus metrics (pass \":Port\" to bind on all interfaces, \"\" is off)")
-	option.BindEnvWithLegacyEnvFallback(option.PrometheusServeAddr, "PROMETHEUS_SERVE_ADDR")
+	//flags.String(option.PrometheusServeAddr, "", "IP:Port on which to serve prometheus metrics (pass \":Port\" to bind on all interfaces, \"\" is off)")
+	//option.BindEnvWithLegacyEnvFallback(option.PrometheusServeAddr, "PROMETHEUS_SERVE_ADDR")
 
 	flags.String(option.CMDRef, "", "Path to cmdref output directory")
 	flags.MarkHidden(option.CMDRef)
@@ -303,13 +303,6 @@ func runDaemon() {
 
 	srv.ConfigureAPI()
 
-	/*
-		err = d.SendNotification(monitorAPI.StartMessage(time.Now()))
-		if err != nil {
-			log.WithError(err).Warn("Failed to send agent start monitor message")
-		}
-	*/
-
 	log.WithField("bootstrapTime", time.Since(bootstrapTimestamp)).
 		Info("Daemon initialization completed")
 
@@ -343,10 +336,12 @@ func (d *Daemon) instantiateAPI() *operations.BpflockAPI {
 		log.WithError(err).Fatal("Cannot load swagger spec")
 	}
 
-	log.Info("Initializing bpflock API")
+	apilog := logging.DefaultLogger.WithField(logfields.LogSubsys, "api")
+
+	apilog.Info("Initializing bpflock API")
 	api := operations.NewBpflockAPI(swaggerSpec)
 
-	api.Logger = log.Infof
+	api.Logger = apilog.Infof
 
 	// /healthz/
 	api.DaemonGetHealthzHandler = NewGetHealthzHandler(d)
@@ -354,9 +349,6 @@ func (d *Daemon) instantiateAPI() *operations.BpflockAPI {
 	// /config/
 	//api.DaemonGetConfigHandler = NewGetConfigHandler(d)
 	//api.DaemonPatchConfigHandler = NewPatchConfigHandler(d)
-
-	// /debuginfo
-	//api.DaemonGetDebuginfoHandler = NewGetDebugInfoHandler(d)
 
 	return api
 }

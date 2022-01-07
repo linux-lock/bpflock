@@ -52,7 +52,8 @@ func (d *Daemon) startAgentHealthHTTPService() {
 	for _, host := range hosts {
 		lc := net.ListenConfig{Control: setsockoptReuseAddrAndPort}
 		addr := net.JoinHostPort(host, fmt.Sprintf("%d", option.Config.AgentHealthPort))
-		addrField := logrus.Fields{"address": addr}
+		url := fmt.Sprintf("http://%s/healthz", addr)
+		addrField := logrus.Fields{"address": addr, "url": url}
 		ln, err := lc.Listen(context.Background(), "tcp", addr)
 		if errors.Is(err, unix.EADDRNOTAVAIL) {
 			log.WithFields(addrField).Info("healthz status API server not available")
