@@ -49,11 +49,10 @@ GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null | sed -e "s/[^
 # Git Version
 ifneq ($(wildcard $(dir $(lastword $(MAKEFILE_LIST)))/.git),)
     GIT_VERSION = $(shell git rev-parse --short HEAD)
-else
-    GIT_VERSION = $(GIT_TAG)
+    GIT_BUILD_TIME = $(shell git show -s --format='format:%aI')
 endif
 
-FULL_BUILD_VERSION = $(VERSION) $(GIT_VERSION)
+FULL_BUILD_VERSION = $(VERSION) $(GIT_VERSION) $(GIT_BUILD_TIME)
 
 # LLVM VERSION
 LLVM_VERSION="12"

@@ -1,3 +1,5 @@
+.. _api_ref:
+
 #############
 API Reference
 #############
@@ -35,4 +37,4 @@ Bpflock is in experimental stage.
 API Reference
 *************
 
-`api/v1/openapi.yaml`_
+.. _openapi: ../api/v1/openapi.yaml
