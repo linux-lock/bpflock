@@ -37,4 +37,6 @@ Bpflock is in experimental stage.
 API Reference
 *************
 
-.. _openapi: ../api/v1/openapi.yaml
+See the still in development OpenAPI_ for more information.
+
+.. _OpenAPI: ../api/v1/openapi.yaml
