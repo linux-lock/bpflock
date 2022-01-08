@@ -10,40 +10,44 @@ Note: bpflock is currently in **experimental stage**, security semantics may cha
   - [1.1 Security features](https://github.com/linux-lock/bpflock#11-security-features)
   - [1.2 Semantics](https://github.com/linux-lock/bpflock#12-semantics)
 * [2. Deployment](https://github.com/linux-lock/bpflock#2-deployment)
-* [3. Documentation](https://github.com/linux-lock/bpflock#2-documentation)
+* [3. Documentation](https://github.com/linux-lock/bpflock#3-documentation)
 * [4. Build](https://github.com/linux-lock/bpflock#3-build)
 
 ## 1. Introduction
 
-bpflock combines multiple bpf programs to restrict access to a various range of Linux features. Only programs like systemd, container managers and other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access those features. Containers that run on their own namespace will be restricted or completely blocked. The restriction will be augmented in the future to perform per cgroupv2 filtering.
+bpflock combines multiple bpf programs to strength Linux security. By restricting access to a various range of Linux features, bpflock is able to reduce the attack surface and block some well known attack techniques.
+
+Only programs like systemd, container managers and other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access those features. Containers that run on their own namespace will be restricted or completely blocked. The restriction will be augmented in the future to perform per cgroupv2 filtering.
 
 bpflock protects Linux machines using a system wide approach taking advantage of [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html).
 
-Note: even bpflock is able to restrict root access to access certain Linux features, it does not protect against evil root users that can disable it.
+Notes:
+- bpflock is not a mandatory access control labeling solution, and it does not intent to replace [AppArmor](https://apparmor.net/), [SELinux](https://github.com/SELinuxProject/selinux), and other MAC solutions.
+- bpflock is able to restrict root to access certain Linux features, however it does not protect against evil root users that can disable it.
 
 ## 1.1 Security features
 
-bpflock bpf programs offer multiple security protections to restrict access to the following Linux features:
+bpflock bpf programs offer multiple security protections that can be classified as:
 
-* [Hardware additions](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md)
-  - [USB additions protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
+* [Hardware Addition Attacks](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md)
+  - [USB Additions Protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
 
-* [Memory protections](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md)
-  - [Kernel image lock down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down)
-  - [Kernel modules protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
-  - [BPF protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection)
+* [Memory Protections](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md)
+  - [Kernel Image Lockdown](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lockdown)
+  - [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
+  - [BPF Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection)
   - [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#4-execution-of-memory-elf-binaries)
 
-* [Filesystem protections](https://github.com/linux-lock/bpflock/tree/main/docs/filesystem-protections.md)
+* [Filesystem Protections](https://github.com/linux-lock/bpflock/tree/main/docs/filesystem-protections.md)
 
   - Read-only root filesystem protection
   - sysfs protection
 
-* [Linux Namespaces protections](https://github.com/linux-lock/bpflock#34-namespaces-protections)
+* [Linux Namespaces Protections](https://github.com/linux-lock/bpflock#34-namespaces-protections)
 
 * Network protections
 
-  - bpflock does not include network protections and will probably not. For a Cloud Native protection [Cilium](https://github.com/cilium/cilium) and other CNI related solutions are by far better. For other deployments, classic netfilter solutions should just work at the moment.
+  - bpflock may include in future a simple network protection that can be used in single machine workload or Linux-IoT, but will not include a Cloud Native protection. [Cilium](https://github.com/cilium/cilium) and other kubernetes CNI related solutions are by far better.
 
 ### 1.2 Semantics
 
