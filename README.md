@@ -2,7 +2,7 @@
 
 `bpflock` - eBPF driven security for locking and auditing Linux machines.
 
-Note: bpflock is currently in **experimental stage**, security semantics may change, some BPF programs will be updated to use [Cilium ebpf library](https://github.com/cilium/ebpf/).
+Note: bpflock is currently in **experimental stage**, it may break, security semantics may change, some BPF programs will be updated to use [Cilium ebpf library](https://github.com/cilium/ebpf/).
 
 ## Sections
 
@@ -17,12 +17,13 @@ Note: bpflock is currently in **experimental stage**, security semantics may cha
 
 bpflock combines multiple bpf programs to strength Linux security. By restricting access to a various range of Linux features, bpflock is able to reduce the attack surface and block some well known attack techniques.
 
-Only programs like systemd, container managers and other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) will be able to access those features. Containers that run on their own namespace will be restricted or completely blocked. The restriction will be augmented in the future to perform per cgroupv2 filtering.
+Only programs like container managers, systemd and other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) may be able to access those features, containers that run on their own namespace will be restricted. If bpflock bpf programs run under a deny permission model then all programs/containers will be denied access even privileged ones.
 
-bpflock protects Linux machines using a system wide approach taking advantage of [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html).
+bpflock protects Linux machines using a system wide approach taking advantage of [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html). The permission model will be augmented soon to include per cgroupv2 filtering.
 
-Notes:
+Architecture and Security design notes:
 - bpflock is not a mandatory access control labeling solution, and it does not intent to replace [AppArmor](https://apparmor.net/), [SELinux](https://github.com/SELinuxProject/selinux), and other MAC solutions.
+- bpflock offers multiple small bpf programs that can be reused in multiple contexts from Cloud Native deployments to Linux IoT devices.
 - bpflock is able to restrict root to access certain Linux features, however it does not protect against evil root users that can disable it.
 
 ## 1.1 Security features
