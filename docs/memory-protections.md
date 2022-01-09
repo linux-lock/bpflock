@@ -16,7 +16,7 @@
 
 **Note: this is still a moving target. Options are not stable**.
 
-By default `kimgban` will restrict access to the following features and allow it only from processes in the initial [mnt namespace](https://man7.org/linux/man-pages/man7/mount_namespaces.7.html):
+By default `kimgban` will restrict access to the following features and allow it only from processes in the initial [pid namespace](https://man7.org/linux/man-pages/man7/mount_namespaces.7.html):
 
   - Loading of unsigned modules.
   - Unsafe usage of module parameters.
@@ -44,14 +44,14 @@ By default `kimgban` will restrict access to the following features and allow it
  * Permission:
     - allow|none: kernel image access is allowed.
     - deny: direct and indirect access to a running kernel image is denied for all processes and containers.
-    - restrict: access is allowed only from processes that are in the initial mnt namespace. This allows, init programs, systemd and container managers to
+    - restrict: access is allowed only from processes that are in the initial pid namespace. This allows, init programs, systemd and container managers to
     properly setup the working environment and communicate with the correspondig hardware. Default permission. 
 
  * Blocked access:
-   If in restrict mode, then the kernel image lock-down will be enforced for all processes that are not in the initial mnt namespace, and [kernel features](https://github.com/linux-lock/bpflock/tree/main/memory-protections#11-introduction) to modify the running kernel are blocked.
+   If in restrict mode, then the kernel image lock-down will be enforced for all processes that are not in the initial pid namespace, and [kernel features](https://github.com/linux-lock/bpflock/tree/main/memory-protections#11-introduction) to modify the running kernel are blocked.
 
  * Special access exceptions:
-   If running under `restrict` permission model, then a coma-separated list of allowed features for the rest of all processes that are not in the initial mnt namespace can be specified:
+   If running under `restrict` permission model, then a coma-separated list of allowed features for the rest of all processes that are not in the initial pid namespace can be specified:
    - `unsigned_module` : allow unsigned module loading.
    - `unsafe_module_parameters` : allow module parameters that directly specify hardware
          parameters to drivers 
@@ -80,19 +80,19 @@ By default `kimgban` will restrict access to the following features and allow it
   sudo kimgban -p none
   ```
 
-* Restrict mode, access is allowed only for processes in the initial mnt namespace:
+* Restrict mode: access is allowed only for processes in the initial pid namespace:
   ```bash
   sudo kimgban
   sudo kimgban -p restrict
   ```
 
-* Restrict mode, access is allowed only for processes in the initial mnt namespace. Access from all other processes is denied, with an exception to allow only the bpf writes to user RAM operation:
+* Restrict mode: access is allowed only for processes in the initial pid namespace. Access from all other processes is denied, with an exception to allow only the bpf writes to user RAM operation:
 
   ```bash
   sudo kimgban -p restrict -a bpf_write
   ``` 
 
-* Restrict mode, access is allowed only for processes in the initial mnt namespace, Access from all other processes is denied, with exceptions to access debugfs, raw I/O port and loading of unsigned modules operations:
+* Restrict mode: access is allowed only for processes in the initial pid namespace, Access from all other processes is denied, with exceptions to access debugfs, raw I/O port and loading of unsigned modules operations:
   ```bash
   sudo kimgban -p restrict \
     -a debugfs,ioport,unsigned_module
@@ -128,7 +128,7 @@ If `/sys` is read-only and can not be remounted, then `kimgban` is pinned and co
  * Permission:
    - `allow|none`: load and unload module operations are allowed.
    - `deny`: all operations of loading and unloading modules are denied for all processes on the system.
-   - `restrict`: load and unload modules are allowed only from processes that are in the initial mnt namespace. This allows init, systemd or container managers to properly set up the system. Default value.
+   - `restrict`: load and unload modules are allowed only from processes that are in the initial pid namespace. This allows init, systemd or container managers to properly set up the system. Default value.
 
  * Root filesystem options:
    - `--rootfs`: allow module operations only if the modules originate from the root filesystem.
@@ -157,18 +157,18 @@ Examples:
   sudo kmodban -p none
   ```
 
-* Restrict mode, module operations are allowed only from processes in the initial mnt namespace:
+* Restrict mode, module operations are allowed only from processes in the initial pid namespace:
   ```bash
   sudo kmodban
   sudo kmodban -p restrict
   ```
 
-* Restrict mode, module operations are allowed only from processes in the initial mnt namespace, but loading of unsigned modules is blocked:
+* Restrict mode, module operations are allowed only from processes in the initial pid namespace, but loading of unsigned modules is blocked:
   ```bash
   sudo kmodban -p restrict -b unsigned_module
   ```
 
-* Restrict mode, module operations are allowed only from processes in the initial mnt namespace, but automatic module loading is blocked for all:
+* Restrict mode, module operations are allowed only from processes in the initial pid namespace, but automatic module loading is blocked for all:
   ```bash
   sudo kmodban -p restrict -b autoload_module
   ```
@@ -184,24 +184,24 @@ If `/sys` is read-only and can not be remounted, then `kmodban` is pinned and co
 
 ### 3.1 Introduction
 
-`bpfban` - implements access restrictions on [bpf syscall](https://man7.org/linux/man-pages/man2/bpf.2.html) by restricting and blocking access to:
+`bpfrestrict` - implements access restrictions on [bpf syscall](https://man7.org/linux/man-pages/man2/bpf.2.html) by
+restricting or blocking access to:
 
   - Loading BPF programs.
   - Creation of BPF maps.
   - Loading BPF Type Format (BTF) metadata into the kernel.
   - BPF writes to user RAM.
 
-The list of blocked operations can be expended in future.
+Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. The list of blocked operations can be expended in future.
 
-
-### 3.2 bpfban usage
+### 3.2 bpfrestrict usage
 
 It supports following options:
 
  * Permission:
-    - `allow|none`: bpf is allowed.
+    - `allow|none`: bpf is allowed for all processes on the system.
     - `deny`: bpf syscall and all its commands are denied for all processes on the system.
-    - `restrict`: bpf is allowed only from processes that are in the initial mnt namespace. This allows init, systemd or container managers to properly set up bpf. Default value.
+    - `restrict`: bpf is allowed only from processes that are in the initial pid namespace. This allows container managers, systemd, init, etc to properly set up bpf. Default value.
 
  * Comma-separated list of commands to block in case permission is `restrict` or `allow`:
     - `bpf_write`: block `bpf_probe_write_user()` that is used to write to user space memory.
@@ -216,32 +216,32 @@ Examples:
 
 * Deny BPF for all processes:
   ```bash
-  sudo bpfban -p deny
+  sudo bpfrestrict -p deny
   ```
 
 * BPF access is allowed:
   ```bash
-  sudo bpfban -p none
+  sudo bpfrestrict -p none
   ```
 
-* Restrict mode, BPF access is allowed from processes in the initial mnt namespace:
+* Restrict mode: BPF access is allowed from processes in the initial pid namespace:
   ```bash
-  sudo bpfban
-  sudo bpfban -p restrict
+  sudo bpfrestrict
+  sudo bpfrestrict -p restrict
   ```
 
-* Restrict mode, BPF access is allowed only from processes in the initial mnt namespace, but the `btf_load` loading BTF metadata into the kernel is blocked:
+* Restrict mode: BPF access is allowed only from processes in the initial pid namespace, but the `btf_load` loading BTF metadata into the kernel is blocked:
   ```bash
-  sudo bpfban -p restrict -b btf_load
+  sudo bpfrestrict -p restrict -b btf_load
   ```
 
-* Restrict mode, BPF access is allowed only from processes in the initial mnt namespace, but bpf_probe_write_user() helper to write user RAM is blocked:
+* Restrict mode: BPF access is allowed only from processes in the initial pid namespace, but bpf_probe_write_user() helper to write user RAM is blocked:
   ```bash
-  sudo bpfban -p restrict -b bpf_write
+  sudo bpfrestrict -p restrict -b bpf_write
   ```
 
-### 3.3 Disable bpfban
+### 3.3 Disable bpfrestrict
 
-Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. For containers workload to disable this program, delete the directory `/sys/fs/bpf/bpflock/bpfban` and all its pinned content. Re-executing will enable it again.
+For containers workload to disable bpfrestrict, delete the directory `/sys/fs/bpf/bpflock/bpfrestrict` and all its pinned content. Re-executing will enable it again.
 
-If `/sys` is read-only and can not be remounted, then `bpfban` is pinned and continues to run.
+If `/sys` filesystem is read-only and can not be remounted read-write, then `bpfrestrict` is pinned and can't be disabled.
