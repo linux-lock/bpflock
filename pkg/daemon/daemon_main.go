@@ -107,7 +107,7 @@ func setupSleepBeforeFatal() {
 }
 
 func initializeFlags() {
-	cobra.OnInitialize(option.InitConfig(RootCmd, "bpflock", "bpflockd"))
+	cobra.OnInitialize(option.InitConfig(RootCmd, "bpflock", "bpflock"))
 
 	// Reset the help function to also exit, as we block elsewhere in interrupts
 	// and would not exit when called with -h.
@@ -129,8 +129,11 @@ func initializeFlags() {
 	flags.String(option.ConfigFile, filepath.Join(defaults.ConfigurationPath, "bpflock.yaml"), `Configuration file`)
 	option.BindEnv(option.ConfigFile)
 
-	//flags.String(option.ConfigDir, "", `Configuration directory that contains a file for each option`)
-	//option.BindEnv(option.ConfigDir)
+	flags.String(option.ConfigDir, filepath.Join(defaults.ConfigurationPath, "bpflock.d"), `Configuration directory that contains a file for each configuration`)
+	option.BindEnv(option.ConfigDir)
+
+	flags.String(option.BpfConfigDir, filepath.Join(defaults.ConfigurationPath, "bpf.d"), `Configuration directory that contains bpf programs configurations`)
+	option.BindEnv(option.BpfConfigDir)
 
 	flags.BoolP(option.DebugArg, "D", false, "Enable debugging mode")
 	option.BindEnv(option.DebugArg)
