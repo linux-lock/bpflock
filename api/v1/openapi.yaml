@@ -47,6 +47,53 @@ paths:
           schema:
             $ref: "#/definitions/DaemonConfiguration"
 definitions:
+  BpfMetadata:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "The name of the bpf program launcher and manager"
+  BpfSpec:
+    type: "object"
+    properties:
+      programs:
+        type: "array"
+        items:
+          $ref: "#/definitions/BpfProgram"
+  BpfMeta:
+    type: "object"
+    properties:
+      bpfmetaver:
+        type: "string"
+        description: "Defines the versioned schema of this representation of an object"
+      kind:
+        type: "string"
+        description: "Kind is a string value representing the REST resource this object represents."
+      metadata:
+        $ref: "#/definitions/BpfMetadata"
+      spec:
+        $ref: "#/definitions/BpfSpec"
+  BpfProgram:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "Name of bpf program"
+      description:
+        type: "string"
+        description: "Description of the bpf program"
+      command:
+        type: "string"
+        description: "Command name of the bpf program launcher"
+      priority:
+        type: "integer"
+        format: "int32"
+        description: "Launch priority of the bpf program"
+      args:
+        type: "array"
+        description: "Command line arguments passed to the bpf program launcher"
+        items:
+          type: "string"
   StatusResponse:
     type: "object"
     properties:

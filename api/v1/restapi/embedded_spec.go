@@ -85,6 +85,74 @@ func init() {
     }
   },
   "definitions": {
+    "BpfMeta": {
+      "type": "object",
+      "properties": {
+        "bpfmetaver": {
+          "description": "Defines the versioned schema of this representation of an object",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind is a string value representing the REST resource this object represents.",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/definitions/BpfMetadata"
+        },
+        "spec": {
+          "$ref": "#/definitions/BpfSpec"
+        }
+      }
+    },
+    "BpfMetadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The name of the bpf program launcher and manager",
+          "type": "string"
+        }
+      }
+    },
+    "BpfProgram": {
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Command line arguments passed to the bpf program launcher",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
+          "description": "Command name of the bpf program launcher",
+          "type": "string"
+        },
+        "description": {
+          "description": "Description of the bpf program",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name of bpf program",
+          "type": "string"
+        },
+        "priority": {
+          "description": "Launch priority of the bpf program",
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "BpfSpec": {
+      "type": "object",
+      "properties": {
+        "programs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BpfProgram"
+          }
+        }
+      }
+    },
     "ConfigurationMap": {
       "description": "Map of configuration key/value pairs.",
       "type": "object",
@@ -269,6 +337,74 @@ func init() {
     }
   },
   "definitions": {
+    "BpfMeta": {
+      "type": "object",
+      "properties": {
+        "bpfmetaver": {
+          "description": "Defines the versioned schema of this representation of an object",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind is a string value representing the REST resource this object represents.",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/definitions/BpfMetadata"
+        },
+        "spec": {
+          "$ref": "#/definitions/BpfSpec"
+        }
+      }
+    },
+    "BpfMetadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The name of the bpf program launcher and manager",
+          "type": "string"
+        }
+      }
+    },
+    "BpfProgram": {
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Command line arguments passed to the bpf program launcher",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
+          "description": "Command name of the bpf program launcher",
+          "type": "string"
+        },
+        "description": {
+          "description": "Description of the bpf program",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name of bpf program",
+          "type": "string"
+        },
+        "priority": {
+          "description": "Launch priority of the bpf program",
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "BpfSpec": {
+      "type": "object",
+      "properties": {
+        "programs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BpfProgram"
+          }
+        }
+      }
+    },
     "ConfigurationMap": {
       "description": "Map of configuration key/value pairs.",
       "type": "object",
