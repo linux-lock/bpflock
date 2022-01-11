@@ -237,8 +237,8 @@ var (
 		},
 		"bpfrestrict": {
 			Name:        "bpfrestrict",
-			Priority:    99,
-			Description: "Restrict access to bpf system call",
+			Priority:    90,
+			Description: "Restrict access to the bpf() system call",
 		},
 	}
 
