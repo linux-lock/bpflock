@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/cilium/cilium/pkg/checker"
-	"github.com/cilium/cilium/pkg/logging"
+	"github.com/linux-lock/bpflock/pkg/logging"
 
 	"github.com/sirupsen/logrus"
 	. "gopkg.in/check.v1"
