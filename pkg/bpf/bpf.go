@@ -64,9 +64,9 @@ func BpfLsmEnable() error {
 
 	for _, p := range spec.Programs {
 		launcher := filepath.Join(option.Config.BpfDir, p.Command)
-		_, err := exec.WithTimeout(defaults.ShortExecTimeout, launcher, p.Args...).Output(log, true)
+		_, err := exec.WithTimeout(defaults.ShortExecTimeout, launcher, p.Args...).CombinedOutput(log, true)
 		if err != nil {
-			return fmt.Errorf("run bpf program '%s' with '%s' failed :%v", p.Name, launcher, err)
+			return fmt.Errorf("run bpf program '%s' with '%s' failed: %v", p.Name, launcher, err)
 		}
 
 		log.WithFields(logrus.Fields{
