@@ -407,7 +407,7 @@ func populateBpfMetaProgs(dst *models.BpfMeta, progs []*models.BpfProgram) error
 	for _, p := range progs {
 		pbpf, ok := BpflockBpfProgs[p.Name]
 		if !ok {
-			fmt.Errorf("unable to validate program '%s' not supported", p.Name)
+			return fmt.Errorf("unable to validate program '%s' not supported", p.Name)
 		}
 
 		prog := &models.BpfProgram{
