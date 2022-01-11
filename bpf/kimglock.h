@@ -10,9 +10,9 @@
 #include "bpflock_security_class.h"
 #include "bpflock_bpf_defs.h"
 
-/* kimgban security class */
+/* kimglock security class */
 
-#define LOG_KIMGBAN "kimgban"
+#define LOG_KIMGLOCK "kimglock"
 
 #define BPFLOCK_KI_PERM        1
 #define BPFLOCK_KI_ALLOW_OP    256
@@ -58,24 +58,24 @@ enum lock_kimg_reason {
 };
 
 struct bpflock_class_map kimg_security_map = {
-        "kernel image ban",
-        "/sys/fs/bpf/bpflock/kimgban",
+        "kernel image lock",
+        "/sys/fs/bpf/bpflock/kimglock",
         { NULL },
         { 0 }
 };
 
 struct bpflock_class_prog_link bpf_prog_links[] = {
         {
-                "bpflock_kimgban_lock",
-                "/sys/fs/bpf/bpflock/kimgban/kimgban_lockdown_link",
+                "bpflock_kimglock_lock",
+                "/sys/fs/bpf/bpflock/kimglock/kimglock_lockdown_link",
         },
         {
-                "bpflock_kimgban_bpf",
-                "/sys/fs/bpf/bpflock/kimgban/kimgban_bpf_link",
+                "bpflock_kimglock_bpf",
+                "/sys/fs/bpf/bpflock/kimglock/kimglock_bpf_link",
         }
 };
 
-/* End of kimgban security class */
+/* End of kimglock security class */
 
 
-#endif /* __BPFLOCK_KIMGBAN_H */
+#endif /* __BPFLOCK_KIMGLOCK_H */
