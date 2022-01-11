@@ -109,44 +109,13 @@ Documentation files can be found [here](https://github.com/linux-lock/bpflock/tr
 
 bpflock uses [docker BuildKit](https://docs.docker.com/develop/develop-images/build_enhancements/) to build and [Golang](https://go.dev/doc/install) for running tests.
 
-### 4.1 libbpf
+To build it just run:
 
-This repository uses libbpf as a git-submodule. After cloning this repository you need to run the command:
-
-```bash
-git submodule update --init
-```
-
-If you want submodules to be part of the clone, you can use this command:
-
-```bash
-git clone --recurse-submodules https://github.com/linux-lock/bpflock
-```
-
-### 4.2 Libraries and compilers
-
-#### Ubuntu
-
-To build install the following packages:
-  ```bash
-  sudo apt install -y bison build-essential flex \
-        git libllvm10 llvm-10-dev libclang-10-dev \
-        zlib1g-dev libelf-dev libfl-dev
-  ```
-
-### 4.3 Build binaries
-
-Get libbpf if not:
-```
-git submodule update --init
-```
-
-To build just run:
 ```bash
 make
 ```
 
-All build binaries and libraries will be produced in `build/dist/` directory.
+Internally it bpf programs are built using libbpf. The docker image used is Ubuntu.
 
 ## Credits
 
