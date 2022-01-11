@@ -1,0 +1,21 @@
+bpfmetaver: "v1"
+kind: "bpf"
+metadata:
+  name: bpflock
+spec:
+  programs:
+    - name: kimglock
+      description: "Restrict both direct and indirect modification to a running kernel image" 
+      command: kimglock
+      args:
+        - -p=deny
+    - name: kmodlock
+      description: "Restrict kernel module operations on modular kernels"
+      command: kmodlock
+      args:
+        - -p=deny
+    - name: bpfrestrict
+      description: "Restrict access to the bpf() system call"
+      command: bpfrestrict
+      args:
+        - -p=deny
