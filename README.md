@@ -87,10 +87,18 @@ bpflock needs the following:
 
 * Obviously a BTF enabled kernel.
 
+
 ### 2.2 Docker deployment
 
-```bash
-docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged -v /sys/kernel/security:/sys/kernel/security -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock:latest
+**Note: this is used for current dev/testing, it will be changed soon so configurations are shipped inside image.**
+
+First fetch one of the following bpf security configuration: [bpf
+configurations](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/bpf.d) and save it into current
+directory.
+
+Then run container using:
+```
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged -v /sys/kernel/security:/sys/kernel/security -v /sys/fs/bpf:/sys/fs/bpf -v $(pwd)/deny.yaml:/etc/bpflock/bpf.d/deny.yaml linuxlock/bpflock
 ```
 
 ## 3. Documentation
