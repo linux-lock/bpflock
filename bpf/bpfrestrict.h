@@ -4,8 +4,8 @@
  * Copyright (C) 2021 Djalal Harouni
  */
 
-#ifndef __BPFLOCK_DISABLEBPF_H
-#define __BPFLOCK_DISABLEBPF_H
+#ifndef __BPFLOCK_BPFRESTRICT_H
+#define __BPFLOCK_BPFRESTRICT_H
 
 #include "bpflock_security_class.h"
 
@@ -19,7 +19,7 @@
 #define BPFLOCK_PROG_LOAD       (1 << 2)
 #define BPFLOCK_BPF_WRITE       (1 << 8)
 
-#define DISABLEBPF_NS_MAP_PIN      "/sys/fs/bpf/bpflock/disablebpf_ns_map"
+#define BPFRESTRICT_NS_MAP_PIN      "/sys/fs/bpf/bpflock/bpfrestrict_ns_map"
 
 enum bpflock_bpf_perm_flag {
         BPFLOCK_BPF_ALLOW       = 1,
@@ -29,23 +29,23 @@ enum bpflock_bpf_perm_flag {
 
 struct bpflock_class_map bpf_security_map = {
         "bpf",
-        "/sys/fs/bpf/bpflock/disable-bpf",
+        "/sys/fs/bpf/bpflock/bpfrestrict",
         { NULL },
         { 0 }
 };
 
 struct bpflock_class_prog_link bpf_prog_links[] = {
         {
-                "bpflock_disablebpf",
-                "/sys/fs/bpf/bpflock/disable-bpf/disablebpf_link",
+                "bpflock_bpfrestrict",
+                "/sys/fs/bpf/bpflock/bpfrestrict/bpfrestrict_link",
         },
         {
-                "bpflock_disablebpf_bpf_write",
-                "/sys/fs/bpf/bpflock/disable-bpf/disablebpf_bpf_write_link",
+                "bpflock_bpfrestrict_bpf_write",
+                "/sys/fs/bpf/bpflock/bpfrestrict/bpfrestrict_bpf_write_link",
         },
 };
 
 /* End of bpf security class */
 
 
-#endif /* __BPFLOCK_DISABLEBPF_H */
+#endif /* __BPFLOCK_BPFRESTRICT_H */

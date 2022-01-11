@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-2.0
 
 /*
  * Copyright (C) 2021 Djalal Harouni
  */
 
 /*
- * Implements access BPF access restrictions.
+ * Implements BPF access restrictions.
  */
 
 #include <argp.h>
@@ -18,8 +18,8 @@
 #include <unistd.h>
 #include "trace_helpers.h"
 #include "bpflock_utils.h"
-#include "disablebpf.h"
-#include "disablebpf.skel.h"
+#include "bpfrestrict.h"
+#include "bpfrestrict.skel.h"
 
 static struct options {
         int perm_int;
@@ -28,25 +28,25 @@ static struct options {
         char *block_op;
 } opt = {};
 
-const char *argp_program_version = "disablebpf 0.1";
+const char *argp_program_version = "bpfrestrict 0.1";
 const char *argp_program_bug_address =
         "https://github.com/linux-lock/bpflock";
 const char argp_program_doc[] =
-"bpflock disablebpf - restrict access to BPF system call.\n"
+"bpflock bpfrestrict - restrict access to BPF system call.\n"
 "\n"
-"USAGE: disablebpf [--help] [-p PERM] [-b CMD]\n"
+"USAGE: bpfrestrict [--help] [-p PERM] [-b CMD]\n"
 "\n"
 "EXAMPLES:\n"
 "  # BPF is allowed.\n"
-"  disablebpf -p allow\n\n"
-"  # Restrict BPF system call to tasks in initial mnt namespace.\n"
-"  disablebpf\n"
-"  disablebpf -p restrict\n\n"
-"  # Restrict BPF to tasks in initial mnt namespace and\n"
+"  bpfrestrict -p allow\n\n"
+"  # Restrict BPF system call to tasks in initial pid namespace.\n"
+"  bpfrestrict\n"
+"  bpfrestrict -p restrict\n\n"
+"  # Restrict BPF to tasks in initial pid namespace and\n"
 "  # block the BPF load program command.\n"
-"  disablebpf -p restrict -b prog_load\n\n"
+"  bpfrestrict -p restrict -b prog_load\n\n"
 "  # Deny BPF system call for all.\n"
-"  disablebpf -p deny\n";
+"  bpfrestrict -p deny\n";
 
 static const struct argp_option opts[] = {
         { "permission", 'p', "PERM", 0, "Permission to apply, one of the following: allow, restrict or deny. Default value is: restrict." },
@@ -83,7 +83,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 }
 
 /* Setup bpf map options */
-static int setup_bpf_opt_map(struct disablebpf_bpf *skel, int *fd)
+static int setup_bpf_opt_map(struct bpfrestrict_bpf *skel, int *fd)
 {
         uint32_t perm_k = BPFLOCK_BPF_PERM;
         uint32_t op_k = BPFLOCK_BPF_OP;
@@ -92,7 +92,7 @@ static int setup_bpf_opt_map(struct disablebpf_bpf *skel, int *fd)
         opt.perm_int = 0;
         opt.block_op_int = 0;
 
-        f = bpf_map__fd(skel->maps.disablebpf_map);
+        f = bpf_map__fd(skel->maps.bpfrestrict_map);
         if (f < 0) {
                 fprintf(stderr, "%s: error: failed to get bpf map fd: %d\n",
                         LOG_BPFLOCK, f);
@@ -133,7 +133,7 @@ static int setup_bpf_opt_map(struct disablebpf_bpf *skel, int *fd)
 }
 
 /* Returns valid fd if it can reuses ns_map */
-int reuse_ns_map(struct disablebpf_bpf *skel, int *fd)
+int reuse_ns_map(struct bpfrestrict_bpf *skel, int *fd)
 {
         struct stat st;
         struct bpf_map *ns_map;
@@ -150,7 +150,7 @@ int reuse_ns_map(struct disablebpf_bpf *skel, int *fd)
         return 0;
 }
 
-static int setup_bpf_env_map(struct disablebpf_bpf *skel, int *fd)
+static int setup_bpf_env_map(struct bpfrestrict_bpf *skel, int *fd)
 {
         int err;
         int f;
@@ -158,7 +158,7 @@ static int setup_bpf_env_map(struct disablebpf_bpf *skel, int *fd)
         if (*fd > 0)
                 return 0;
 
-        f = bpf_map__fd(skel->maps.disablebpf_ns_map);
+        f = bpf_map__fd(skel->maps.bpfrestrict_ns_map);
         if (f < 0) {
                 fprintf(stderr, "%s: error: failed to get ns map fd: %d\n",
                         LOG_BPFLOCK, f);
@@ -185,10 +185,10 @@ int main(int argc, char **argv)
                 .doc = argp_program_doc,
         };
 
-        struct disablebpf_bpf *skel = NULL;
+        struct bpfrestrict_bpf *skel = NULL;
         struct bpf_link *link = NULL;
         struct bpf_program *prog = NULL;
-        int disablebpf_map_fd = -1, ns_map_fd = -1;
+        int bpfrestrict_map_fd = -1, ns_map_fd = -1;
         struct stat st;
         char *buf = NULL;
         int err, i;
@@ -228,7 +228,7 @@ int main(int argc, char **argv)
 
         memset(buf, 0, 128);
 
-        skel = disablebpf_bpf__open();
+        skel = bpfrestrict_bpf__open();
         if (!skel) {
                 fprintf(stderr, "%s: error: failed to open BPF skelect\n",
                         LOG_BPFLOCK);
@@ -236,14 +236,14 @@ int main(int argc, char **argv)
                 goto cleanup;
         }
 
-        err = disablebpf_bpf__load(skel);
+        err = bpfrestrict_bpf__load(skel);
         if (err) {
                 fprintf(stderr, "%s: error: failed to load BPF skelect: %d\n",
                         LOG_BPFLOCK, err);
                 goto cleanup;
         }
 
-        err = setup_bpf_opt_map(skel, &disablebpf_map_fd);
+        err = setup_bpf_opt_map(skel, &bpfrestrict_map_fd);
         if (err < 0) {
                 fprintf(stderr, "%s: error: failed to setup bpf opt map: %d\n",
                         LOG_BPFLOCK, err);
@@ -293,10 +293,10 @@ int main(int argc, char **argv)
                 printf("%s: success: The bpf() syscall is now disabled - delete pinned file '%s' to re-enable\n",
                         LOG_BPFLOCK, bpf_security_map.pin_path);
         } else if (opt.perm_int == BPFLOCK_BPF_RESTRICT) {
-                printf("%s: success: The bpf() syscall is now restricted only to initial mnt namespace - delete pinned file '%s' to re-enable\n",
+                printf("%s: success: The bpf() syscall is now restricted only to initial pid namespace - delete pinned file '%s' to re-enable\n",
                         LOG_BPFLOCK, bpf_security_map.pin_path);
         } else {
-                printf("%s: The bpf() syscall is allowed - pinned file '%s' to re-enable\n",
+                printf("%s: The bpf() syscall is allowed - delete pinned file '%s' to disable access logging.\n",
                         LOG_BPFLOCK, bpf_security_map.pin_path);
         }
 
@@ -305,7 +305,7 @@ cleanup:
                 bpf_link__destroy(link);
 
         if (skel)
-                disablebpf_bpf__destroy(skel);
+                bpfrestrict_bpf__destroy(skel);
 
         free(buf);
 

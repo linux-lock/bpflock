@@ -4,18 +4,13 @@
  * Copyright (C) 2021 Djalal Harouni
  */
 
- /*
- * To disable this program, delete the directory "/sys/fs/bpf/bpflock/disable-bpf"
- * and all its pinned content. Re-executing will enable it again.
- */
-
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include <errno.h>
 #include "bpflock_bpf_defs.h"
-#include "disablebpf.h"
+#include "bpfrestrict.h"
 
 #define DBPF_PROGRAMS 2
 #define DBPF_WRITE_USER 16
@@ -25,14 +20,14 @@ struct {
         __uint(max_entries, 8);
         __type(key, uint32_t);
         __type(value, uint32_t);
-} disablebpf_map SEC(".maps");
+} bpfrestrict_map SEC(".maps");
 
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
         __uint(max_entries, 8);
         __type(key, uint32_t);
         __type(value, struct bl_stat);
-} disablebpf_ns_map SEC(".maps");
+} bpfrestrict_ns_map SEC(".maps");
 
 int pinned_bpf = 0;
 
@@ -47,7 +42,7 @@ static __always_inline bool is_init_mnt_ns(void)
          * If we fail to read stat namespaces then just assume
          * not same namespaces.
          */
-        st = bpf_map_lookup_elem(&disablebpf_ns_map, &k);
+        st = bpf_map_lookup_elem(&bpfrestrict_ns_map, &k);
         if (!st)
                 return false;
 
@@ -62,7 +57,7 @@ static __always_inline bool is_init_mnt_ns(void)
 }
 
 SEC("lsm/bpf")
-int BPF_PROG(disablebpf, int cmd, union bpf_attr *attr,
+int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
              unsigned int size, int ret)
 {
         uint32_t *val, blocked = 0, op_blocked = 0;
@@ -72,7 +67,7 @@ int BPF_PROG(disablebpf, int cmd, union bpf_attr *attr,
                 return ret;
 
         if (pinned_bpf == DBPF_PROGRAMS) {
-                val = bpf_map_lookup_elem(&disablebpf_map, &k);
+                val = bpf_map_lookup_elem(&bpfrestrict_map, &k);
                 if (!val)
                         return ret;
 
@@ -91,7 +86,7 @@ int BPF_PROG(disablebpf, int cmd, union bpf_attr *attr,
                  * if not then allow BPF commands.
                  * This covers both restrict and allow permissions.
                  */
-                val = bpf_map_lookup_elem(&disablebpf_map, &k);
+                val = bpf_map_lookup_elem(&bpfrestrict_map, &k);
                 if (!val)
                         return 0;
 
@@ -123,7 +118,7 @@ int BPF_PROG(disablebpf, int cmd, union bpf_attr *attr,
 }
 
 SEC("lsm/locked_down")
-int BPF_PROG(disablebpf_bpf_write, enum lockdown_reason what, int ret)
+int BPF_PROG(bpfrestrict_bpf_write, enum lockdown_reason what, int ret)
 {
         uint32_t *val, blocked = 0;
         uint32_t k = BPFLOCK_BPF_PERM;
@@ -136,7 +131,7 @@ int BPF_PROG(disablebpf_bpf_write, enum lockdown_reason what, int ret)
         if (what != DBPF_WRITE_USER || pinned_bpf != DBPF_PROGRAMS)
                 return ret;
 
-        val = bpf_map_lookup_elem(&disablebpf_map, &k);
+        val = bpf_map_lookup_elem(&bpfrestrict_map, &k);
         if (!val)
                 return ret;
 
@@ -151,7 +146,7 @@ int BPF_PROG(disablebpf_bpf_write, enum lockdown_reason what, int ret)
         k = BPFLOCK_BPF_OP;
 
         /* If not block access is not found then allow */
-        val = bpf_map_lookup_elem(&disablebpf_map, &k);
+        val = bpf_map_lookup_elem(&bpfrestrict_map, &k);
         if (!val)
                 return 0;
 
