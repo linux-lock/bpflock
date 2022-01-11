@@ -65,7 +65,7 @@ bpflock tries to keep the security semantics simple without introducing complex 
   - `allow` : comma-separated list of allowed operations. Valid under `restrict` and `deny` permissions.
   - `block` : comma-separated list of blocked operations. Valid under `restrict` permission.
 
-For configuration examples check [bpflock configuration examples](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/README.md)
+For bpf security examples check [bpflock configuration examples](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/)
 
 
 ## 2. Deployment
