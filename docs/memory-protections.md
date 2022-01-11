@@ -12,11 +12,11 @@
 
 ### 1.1 Introduction
 
-`kimgban` - kernel image ban implements restrictions to prevent both direct and indirect modification to a running kernel image, attempting to protect against unauthorized access. It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) features and other Linux Security Module features to protect against unauthorized modification of the kernel image.
+`kimglock` - kernel image lock implements restrictions to prevent both direct and indirect modification to a running kernel image, attempting to protect against unauthorized access. It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) features and other Linux Security Module features to protect against unauthorized modification of the kernel image.
 
 **Note: this is still a moving target. Options are not stable**.
 
-By default `kimgban` will restrict access to the following features and allow it only from processes in the initial [pid namespace](https://man7.org/linux/man-pages/man7/mount_namespaces.7.html):
+By default `kimglock` will restrict access to the following features and allow it only from processes in the initial [pid namespace](https://man7.org/linux/man-pages/man7/mount_namespaces.7.html):
 
   - Loading of unsigned modules.
   - Unsafe usage of module parameters.
@@ -37,9 +37,9 @@ By default `kimgban` will restrict access to the following features and allow it
   - Loading BPF Type Format (BTF) metadata into the kernel.
 
 
-### 1.2 kimgban usage
+### 1.2 kimglock usage
 
-`kimgban` supports the following options:
+`kimglock` supports the following options:
 
  * Permission:
     - allow|none: kernel image access is allowed.
@@ -68,62 +68,62 @@ By default `kimgban` will restrict access to the following features and allow it
    - `btf_load` : loading BPF Type Format (BTF) metadata into the kernel is allowed.
 
 
-`kimgban` examples:
+`kimglock` examples:
 
 * Deny direct and indirect access to a running kernel image for all processes:
   ```bash
-  sudo kimgban -p deny
+  sudo kimglock -p deny
   ```
 
 * kernel image access is allowed:
   ```bash
-  sudo kimgban -p none
+  sudo kimglock -p none
   ```
 
 * Restrict mode: access is allowed only for processes in the initial pid namespace:
   ```bash
-  sudo kimgban
-  sudo kimgban -p restrict
+  sudo kimglock
+  sudo kimglock -p restrict
   ```
 
 * Restrict mode: access is allowed only for processes in the initial pid namespace. Access from all other processes is denied, with an exception to allow only the bpf writes to user RAM operation:
 
   ```bash
-  sudo kimgban -p restrict -a bpf_write
+  sudo kimglock -p restrict -a bpf_write
   ``` 
 
 * Restrict mode: access is allowed only for processes in the initial pid namespace, Access from all other processes is denied, with exceptions to access debugfs, raw I/O port and loading of unsigned modules operations:
   ```bash
-  sudo kimgban -p restrict \
+  sudo kimglock -p restrict \
     -a debugfs,ioport,unsigned_module
   ``` 
 
-### 1.3 Disable kimgban
+### 1.3 Disable kimglock
 
-To disable this program delete the directory `/sys/fs/bpf/bpflock/kimgban` and all its pinned content. Re-executing will enable it again.
+To disable this program delete the directory `/sys/fs/bpf/bpflock/kimglock` and all its pinned content. Re-executing will enable it again.
 
-If `/sys` is read-only and can not be remounted, then `kimgban` is pinned and continues to run.
+If `/sys` is read-only and can not be remounted, then `kimglock` is pinned and continues to run.
 
 
 ## 2 Kernel Modules Protections
 
 ### 2.1 Introduction
 
-`kmodban` implements restrictions to control module load operations on modular kernels. It allows to restrict or block access to:
+`kmodlock` implements restrictions to control module load operations on modular kernels. It allows to restrict or block access to:
 
   - Explicit module loading.
   - Loading of unsigned modules.
   - Automatic loading of kernel modules. This will block users (or attackers) from auto-loading modules. Unprivileged code will not be able to load "vulnerable" modules in this case. 
   - Unsafe usage of module parameters.
 
-`kmodban` can also be used to ensure that all kernel modules and firmware that are loaded originate from the same root filesystem. Extra flags can be passed to ensure that such filesystem is: mounted read-only or either backed by a read-only device such as dm-verity, if not then the operation will be denied. Some of this functionality was inspired by [LoadPin LSM](https://www.kernel.org/doc/html/latest/admin-guide/LSM/LoadPin.html).
+`kmodlock` can also be used to ensure that all kernel modules and firmware that are loaded originate from the same root filesystem. Extra flags can be passed to ensure that such filesystem is: mounted read-only or either backed by a read-only device such as dm-verity, if not then the operation will be denied. Some of this functionality was inspired by [LoadPin LSM](https://www.kernel.org/doc/html/latest/admin-guide/LSM/LoadPin.html).
 
 **Limitations: due to being an BPF program, it will miss some modules that have already been loaded before the bpf filesystem is mounted, or when init starts it and BPF programs are inserted. Running this in early boot before network setup will minimize such cases, example when systemd mounts local filesystems.**
 
 
 ### 2.2 Modules protection usage
 
-`kmodban` supports the following options:
+`kmodlock` supports the following options:
 
  * Permission:
    - `allow|none`: load and unload module operations are allowed.
@@ -149,35 +149,35 @@ Examples:
 
 * Deny load and unload modules for all processes:
   ```bash
-  sudo kmodban -p deny
+  sudo kmodlock -p deny
   ```
 
 * Allow load and unload of kernel modules:
   ```bash
-  sudo kmodban -p none
+  sudo kmodlock -p none
   ```
 
 * Restrict mode, module operations are allowed only from processes in the initial pid namespace:
   ```bash
-  sudo kmodban
-  sudo kmodban -p restrict
+  sudo kmodlock
+  sudo kmodlock -p restrict
   ```
 
 * Restrict mode, module operations are allowed only from processes in the initial pid namespace, but loading of unsigned modules is blocked:
   ```bash
-  sudo kmodban -p restrict -b unsigned_module
+  sudo kmodlock -p restrict -b unsigned_module
   ```
 
 * Restrict mode, module operations are allowed only from processes in the initial pid namespace, but automatic module loading is blocked for all:
   ```bash
-  sudo kmodban -p restrict -b autoload_module
+  sudo kmodlock -p restrict -b autoload_module
   ```
 
 ### 2.3 Disable modules protections
 
-For containers workload to disable this program, delete the directory `/sys/fs/bpf/bpflock/kmodban` and all its pinned content. Re-executing will enable it again.
+For containers workload to disable this program, delete the directory `/sys/fs/bpf/bpflock/kmodlock` and all its pinned content. Re-executing will enable it again.
 
-If `/sys` is read-only and can not be remounted, then `kmodban` is pinned and continues to run.
+If `/sys` is read-only and can not be remounted, then `kmodlock` is pinned and continues to run.
 
 
 ## 3 BPF protection
