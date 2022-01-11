@@ -65,6 +65,12 @@ const (
 	// DefaultMapPrefix
 	DefaultMapPrefix = "bpflock"
 
+	// ShortExecTimeout is a short timeout for executing commands.
+	ShortExecTimeout = 10 * time.Second
+
+	// ExecTimeout is a timeout for executing commands.
+	ExecTimeout = 30 * time.Second
+
 	// ClientConnectTimeout is the time the bpflock agent client is
 	// (optionally) waiting before returning an error.
 	ClientConnectTimeout = 30 * time.Second
