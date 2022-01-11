@@ -8,16 +8,21 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/linux-lock/bpflock/pkg/command/exec"
 	"github.com/linux-lock/bpflock/pkg/defaults"
+	"github.com/linux-lock/bpflock/pkg/logging"
+	"github.com/linux-lock/bpflock/pkg/logging/logfields"
+	"github.com/linux-lock/bpflock/pkg/option"
 
 	"github.com/sirupsen/logrus"
 )
 
 var (
+	log = logging.DefaultLogger.WithField(logfields.LogSubsys, "bpf")
+
 	bpfProgramsPath = filepath.Join(defaults.ProgramLibPath, "bpf")
 	bpftool         = filepath.Join(defaults.ProgramLibPath, "bpftool")
 )
@@ -37,7 +42,7 @@ func bpftoolGetProgID(progName string) (string, error) {
 		"bpftool": bpftool,
 		"args":    args,
 	}).Debug("GetProgID:")
-	output, err := exec.Command(bpftool, args...).CombinedOutput()
+	output, err := exec.WithTimeout(defaults.ShortExecTimeout, bpftool, args...).CombinedOutput(log, false)
 	if err != nil {
 		return "", fmt.Errorf("Failed to show %s: %s: %s", progName, err, output)
 	}
@@ -55,6 +60,21 @@ func bpftoolGetProgID(progName string) (string, error) {
 // BpfLsmEnable will execute all programs according to configuration
 // and corresponding bpf programs will be pinned automatically
 func BpfLsmEnable() error {
+	spec := option.Config.BpfMeta.Spec
+
+	for _, p := range spec.Programs {
+		launcher := filepath.Join(option.Config.BpfDir, p.Command)
+		_, err := exec.WithTimeout(defaults.ShortExecTimeout, launcher, p.Args...).Output(log, true)
+		if err != nil {
+			return fmt.Errorf("run bpf program '%s' with '%s' failed :%v", p.Name, launcher, err)	
+		}
+
+		log.WithFields(logrus.Fields{
+			"launcher": launcher,
+			"args": p.Args,
+		}).Infof("%s: %s", p.Name, p.Description)
+	}
+
 	return nil
 }
 

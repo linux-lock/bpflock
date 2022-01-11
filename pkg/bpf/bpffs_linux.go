@@ -15,16 +15,12 @@ import (
 
 	"github.com/linux-lock/bpflock/pkg/components"
 	"github.com/linux-lock/bpflock/pkg/defaults"
-	"github.com/linux-lock/bpflock/pkg/logging"
-	"github.com/linux-lock/bpflock/pkg/logging/logfields"
 	"github.com/linux-lock/bpflock/pkg/mountinfo"
 
 	"golang.org/x/sys/unix"
 )
 
 var (
-	log = logging.DefaultLogger.WithField(logfields.LogSubsys, "bpf")
-
 	// Path to where bpffs is mounted
 	mapRoot = defaults.DefaultMapRoot
 
