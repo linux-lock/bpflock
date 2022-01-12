@@ -31,6 +31,17 @@ struct {
 
 int pinned_bpf = 0;
 
+static __always_inline bool is_init_pid_ns(void)
+{
+        struct task_struct *current;
+        unsigned long id = 0;
+
+        current = (struct task_struct *)bpf_get_current_task();
+        id = BPF_CORE_READ(current, nsproxy, pid_ns_for_children, ns.inum);
+
+        return id == (unsigned long)PROC_PID_INIT_INO;
+}
+
 static __always_inline bool is_init_mnt_ns(void)
 {
         struct task_struct *current;
@@ -75,8 +86,8 @@ int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
                 if (blocked == BPFLOCK_BPF_DENY)
                         return -EPERM;
 
-                /* If restrict and not in init namespace deny access */
-                if (blocked == BPFLOCK_BPF_RESTRICT && !is_init_mnt_ns())
+                /* If restrict and not in init pid namespace deny access */
+                if (blocked == BPFLOCK_BPF_RESTRICT && !is_init_pid_ns())
                         return -EPERM;
 
                 k = BPFLOCK_BPF_OP;
@@ -123,8 +134,6 @@ int BPF_PROG(bpfrestrict_bpf_write, enum lockdown_reason what, int ret)
         uint32_t *val, blocked = 0;
         uint32_t k = BPFLOCK_BPF_PERM;
 
-        bpf_printk("lockdown security: %d\n", pinned_bpf);
-
         if (ret != 0 )
                 return ret;
 
@@ -139,8 +148,8 @@ int BPF_PROG(bpfrestrict_bpf_write, enum lockdown_reason what, int ret)
         if (blocked == BPFLOCK_BPF_DENY)
                 return -EPERM;
 
-        /* If restrict and not in init namespace, then deny access */
-        if (blocked == BPFLOCK_BPF_RESTRICT && !is_init_mnt_ns())
+        /* If restrict and not in init pid namespace, then deny access */
+        if (blocked == BPFLOCK_BPF_RESTRICT && !is_init_pid_ns())
                 return -EPERM;
 
         k = BPFLOCK_BPF_OP;
