@@ -9,16 +9,16 @@ spec:
 #      doc: https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#1-kernel-image-lock-down
 #      command: kimglock
 #      args:
-#        - -p=deny
+#        - --permission=deny
     - name: kmodlock
       description: "Restrict kernel module operations on modular kernels"
       doc: https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#2-kernel-modules-protections
       command: kmodlock
       args:
-        - -p=deny
+        - --permission=deny
     - name: bpfrestrict
       description: "Restrict access to the bpf() system call"
       doc: https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#3-bpf-protection
       command: bpfrestrict
       args:
-        - -p=deny
+        - --permission=deny

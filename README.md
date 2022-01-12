@@ -37,7 +37,7 @@ bpflock bpf programs offer multiple security protections that can be classified 
   - [USB Additions Protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
 
 * [Memory Protections](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md)
-  - [Kernel Image Lockdown](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lockdown)
+  - [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down)
   - [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
   - [BPF Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection)
   - [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#4-execution-of-memory-elf-binaries)

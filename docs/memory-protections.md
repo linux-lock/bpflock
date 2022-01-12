@@ -2,21 +2,21 @@
 
 ## Sections
 
-  1. [Kernel image lock-down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down)
-  2. [Kernel modules protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
-  3. [BPF protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection)
-  4. [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#4-execution-of-memory-elf-binaries)
+  1. [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/blob/main/docs/memory--permission=rotections.md#1-kernel-image-lock-down)
+  2. [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory--permission=rotections.md#2-kernel-modules--permission=rotections)
+  3. [BPF Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory--permission=rotections.md#3-bpf--permission=rotection)
+  4. [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/docs/memory--permission=rotections.md#4-execution-of-memory-elf-binaries)
 
 
-## 1. Kernel Image lock-down
+## 1. Kernel Image Lock-down
 
 ### 1.1 Introduction
 
-`kimglock` - kernel image lock implements restrictions to prevent both direct and indirect modification to a running kernel image, attempting to protect against unauthorized access. It combines the [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) features and other Linux Security Module features to protect against unauthorized modification of the kernel image.
+`kimglock` - kernel image lock implements restrictions to prevent both direct and indirect modification to a running kernel image, attempting to protect against unauthorized access. It combines the [kernel lockdown](https://man7.org/linux/man--permission=ages/man7/kernel_lockdown.7.html) features and other Linux Security Module features to protect against unauthorized modification of the kernel image.
 
 **Note: this is still a moving target. Options are not stable**.
 
-By default `kimglock` will restrict access to the following features and allow it only from processes in the initial [pid namespace](https://man7.org/linux/man-pages/man7/mount_namespaces.7.html):
+By default `kimglock` will restrict access to the following features and allow it only from processes in the initial [pid namespace](https://man7.org/linux/man--permission=ages/man7/mount_namespaces.7.html):
 
   - Loading of unsigned modules.
   - Unsafe usage of module parameters.
@@ -48,7 +48,7 @@ By default `kimglock` will restrict access to the following features and allow i
     properly setup the working environment and communicate with the correspondig hardware. Default permission. 
 
  * Blocked access:
-   If in restrict mode, then the kernel image lock-down will be enforced for all processes that are not in the initial pid namespace, and [kernel features](https://github.com/linux-lock/bpflock/tree/main/memory-protections#11-introduction) to modify the running kernel are blocked.
+   If in restrict mode, then the kernel image lock-down will be enforced for all processes that are not in the initial pid namespace, and [kernel features](https://github.com/linux-lock/bpflock/tree/main/memory--permission=rotections#11-introduction) to modify the running kernel are blocked.
 
  * Special access exceptions:
    If running under `restrict` permission model, then a coma-separated list of allowed features for the rest of all processes that are not in the initial pid namespace can be specified:
@@ -72,30 +72,30 @@ By default `kimglock` will restrict access to the following features and allow i
 
 * Deny direct and indirect access to a running kernel image for all processes:
   ```bash
-  sudo kimglock -p deny
+  sudo kimglock --permission=deny
   ```
 
 * kernel image access is allowed:
   ```bash
-  sudo kimglock -p none
+  sudo kimglock --permission=none
   ```
 
 * Restrict mode: access is allowed only for processes in the initial pid namespace:
   ```bash
   sudo kimglock
-  sudo kimglock -p restrict
+  sudo kimglock --permission=restrict
   ```
 
 * Restrict mode: access is allowed only for processes in the initial pid namespace. Access from all other processes is denied, with an exception to allow only the bpf writes to user RAM operation:
 
   ```bash
-  sudo kimglock -p restrict -a bpf_write
+  sudo kimglock --permission=restrict --allow=bpf_write
   ``` 
 
 * Restrict mode: access is allowed only for processes in the initial pid namespace, Access from all other processes is denied, with exceptions to access debugfs, raw I/O port and loading of unsigned modules operations:
   ```bash
-  sudo kimglock -p restrict \
-    -a debugfs,ioport,unsigned_module
+  sudo kimglock --permission=restrict \
+    --allow=debugfs,ioport,unsigned_module
   ``` 
 
 ### 1.3 Disable kimglock
@@ -117,8 +117,6 @@ If `/sys` is read-only and can not be remounted, then `kimglock` is pinned and c
   - Unsafe usage of module parameters.
 
 `kmodlock` can also be used to ensure that all kernel modules and firmware that are loaded originate from the same root filesystem. Extra flags can be passed to ensure that such filesystem is: mounted read-only or either backed by a read-only device such as dm-verity, if not then the operation will be denied. Some of this functionality was inspired by [LoadPin LSM](https://www.kernel.org/doc/html/latest/admin-guide/LSM/LoadPin.html).
-
-**Limitations: due to being an BPF program, it will miss some modules that have already been loaded before the bpf filesystem is mounted, or when init starts it and BPF programs are inserted. Running this in early boot before network setup will minimize such cases, example when systemd mounts local filesystems.**
 
 
 ### 2.2 Modules protection usage
@@ -149,28 +147,28 @@ Examples:
 
 * Deny load and unload modules for all processes:
   ```bash
-  sudo kmodlock -p deny
+  sudo kmodlock --permission=deny
   ```
 
 * Allow load and unload of kernel modules:
   ```bash
-  sudo kmodlock -p none
+  sudo kmodlock --permission=none
   ```
 
-* Restrict mode, module operations are allowed only from processes in the initial pid namespace:
+* Restrict mode: module operations are allowed only from processes in the initial pid namespace:
   ```bash
   sudo kmodlock
-  sudo kmodlock -p restrict
+  sudo kmodlock --permission=restrict
   ```
 
-* Restrict mode, module operations are allowed only from processes in the initial pid namespace, but loading of unsigned modules is blocked:
+* Restrict mode: module operations are allowed only from processes in the initial pid namespace, but loading unsigned modules is blocked:
   ```bash
-  sudo kmodlock -p restrict -b unsigned_module
+  sudo kmodlock --permission=restrict --block=unsigned_module
   ```
 
-* Restrict mode, module operations are allowed only from processes in the initial pid namespace, but automatic module loading is blocked for all:
+* Restrict mode: module operations are allowed only from processes in the initial pid namespace, but automatic module loading is blocked for all:
   ```bash
-  sudo kmodlock -p restrict -b autoload_module
+  sudo kmodlock --permission=restrict --block=autoload_module
   ```
 
 ### 2.3 Disable modules protections
@@ -184,7 +182,7 @@ If `/sys` is read-only and can not be remounted, then `kmodlock` is pinned and c
 
 ### 3.1 Introduction
 
-`bpfrestrict` - implements access restrictions on [bpf syscall](https://man7.org/linux/man-pages/man2/bpf.2.html) by
+`bpfrestrict` - implements access restrictions on [bpf syscall](https://man7.org/linux/man--permission=ages/man2/bpf.2.html) by
 restricting or blocking access to:
 
   - Loading BPF programs.
@@ -216,28 +214,28 @@ Examples:
 
 * Deny BPF for all processes:
   ```bash
-  sudo bpfrestrict -p deny
+  sudo bpfrestrict --permission=deny
   ```
 
 * BPF access is allowed:
   ```bash
-  sudo bpfrestrict -p none
+  sudo bpfrestrict --permission=none
   ```
 
 * Restrict mode: BPF access is allowed from processes in the initial pid namespace:
   ```bash
   sudo bpfrestrict
-  sudo bpfrestrict -p restrict
-  ```
-
-* Restrict mode: BPF access is allowed only from processes in the initial pid namespace, but the `btf_load` loading BTF metadata into the kernel is blocked:
-  ```bash
-  sudo bpfrestrict -p restrict -b btf_load
+  sudo bpfrestrict --permission=restrict
   ```
 
 * Restrict mode: BPF access is allowed only from processes in the initial pid namespace, but bpf_probe_write_user() helper to write user RAM is blocked:
   ```bash
-  sudo bpfrestrict -p restrict -b bpf_write
+  sudo bpfrestrict --permission=restrict --block=bpf_write
+  ```
+
+* Restrict mode: BPF access is allowed only from processes in the initial pid namespace, but the `btf_load` loading BTF metadata into the kernel is blocked:
+  ```bash
+  sudo bpfrestrict --permission=restrict --block=btf_load
   ```
 
 ### 3.3 Disable bpfrestrict
