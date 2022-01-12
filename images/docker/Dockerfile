@@ -65,8 +65,8 @@ COPY --from=bpflock-builder /go/src/github.com/linux-lock/bpflock/tools/$TARGETA
 
 ENV DEBIAN_FRONTEND=noninteractive 
 
-RUN apt-get update && apt-get install -y binutils libcap2 libelf1 \
-    curl wget bash && \
+RUN apt-get update && apt-get install -y --no-install-recommends binutils \
+    libcap2 libelf1 curl wget bash && \
     apt-get clean
 
 RUN apt-get update && apt-get install -y ca-certificates && \
