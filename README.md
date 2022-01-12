@@ -7,11 +7,12 @@ Note: bpflock is currently in **experimental stage**, it may break, security sem
 ## Sections
 
 * [1. Introduction](https://github.com/linux-lock/bpflock#1-introduction)
-  - [1.1 Security features](https://github.com/linux-lock/bpflock#11-security-features)
-  - [1.2 Semantics](https://github.com/linux-lock/bpflock#12-semantics)
-* [2. Deployment](https://github.com/linux-lock/bpflock#2-deployment)
-* [3. Documentation](https://github.com/linux-lock/bpflock#3-documentation)
-* [4. Build](https://github.com/linux-lock/bpflock#3-build)
+* [2. Functionality Overview](https://github.com/linux-lock/bpflock#2-functionality-overview)
+  - [2.1 Security features](https://github.com/linux-lock/bpflock#21-security-features)
+  - [2.2 Semantics](https://github.com/linux-lock/bpflock#12-semantics)
+* [3. Deployment](https://github.com/linux-lock/bpflock#2-deployment)
+* [4. Documentation](https://github.com/linux-lock/bpflock#3-documentation)
+* [5. Build](https://github.com/linux-lock/bpflock#3-build)
 
 ## 1. Introduction
 
@@ -26,7 +27,9 @@ Architecture and Security design notes:
 - bpflock offers multiple small bpf programs that can be reused in multiple contexts from Cloud Native deployments to Linux IoT devices.
 - bpflock is able to restrict root to access certain Linux features, however it does not protect against evil root users that can disable it.
 
-## 1.1 Security features
+## 2. Functionality Overview
+
+### 2.1 Security features
 
 bpflock bpf programs offer multiple security protections that can be classified as:
 
@@ -50,7 +53,7 @@ bpflock bpf programs offer multiple security protections that can be classified 
 
   - bpflock may include in future a simple network protection that can be used in single machine workload or Linux-IoT, but will not include a Cloud Native protection. [Cilium](https://github.com/cilium/cilium) and other kubernetes CNI related solutions are by far better.
 
-### 1.2 Semantics
+### 2.2 Semantics
 
 bpflock tries to keep the security semantics simple without introducing complex policies. It uses a simple `permission` model that takes the following values:
 
@@ -68,9 +71,9 @@ bpflock tries to keep the security semantics simple without introducing complex 
 For bpf security examples check [bpflock configuration examples](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/)
 
 
-## 2. Deployment
+## 3. Deployment
 
-### 2.1 Prerequisites
+### 3.1 Prerequisites
 
 bpflock needs the following:
 
@@ -88,7 +91,7 @@ bpflock needs the following:
 * Obviously a BTF enabled kernel.
 
 
-### 2.2 Docker deployment
+### 3.2 Docker deployment
 
 **Note: this is used for current dev/testing, it will be changed soon so configurations are shipped inside image.**
 
@@ -101,11 +104,11 @@ Then run container using:
 docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged -v /sys/kernel/security:/sys/kernel/security -v /sys/fs/bpf:/sys/fs/bpf -v $(pwd)/deny.yaml:/etc/bpflock/bpf.d/deny.yaml linuxlock/bpflock
 ```
 
-## 3. Documentation
+## 4. Documentation
 
 Documentation files can be found [here](https://github.com/linux-lock/bpflock/tree/main/docs/).
 
-## 4. Build
+## 5. Build
 
 bpflock uses [docker BuildKit](https://docs.docker.com/develop/develop-images/build_enhancements/) to build and [Golang](https://go.dev/doc/install) for running tests.
 
@@ -115,7 +118,7 @@ To build it just run:
 make
 ```
 
-Internally it bpf programs are built using libbpf. The docker image used is Ubuntu.
+Bpf programs are built using libbpf. The docker image used is Ubuntu.
 
 ## Credits
 
