@@ -60,9 +60,6 @@ func (d *Daemon) init() error {
 		log.WithError(err).WithField(logfields.Path, option.Config.StateDir).Fatal("Could not change to runtime directory")
 	}
 
-	// Remove any old bpf programs
-	bpf.BpfLsmDisable()
-
 	// Start all bpf programs again
 	return bpf.BpfLsmEnable()
 }
@@ -84,6 +81,9 @@ func NewDaemon(ctx context.Context, cancel context.CancelFunc) (*Daemon, error) 
 	if err != nil {
 		log.WithError(err).Fatal("Unable to set memory resource limits")
 	}
+
+	// Remove any old bpf programs
+	bpf.BpfLsmDisable()
 
 	d := Daemon{
 		ctx:    ctx,
