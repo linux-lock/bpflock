@@ -64,15 +64,20 @@ func BpfLsmEnable() error {
 
 	for _, p := range spec.Programs {
 		launcher := filepath.Join(option.Config.BpfDir, p.Command)
-		_, err := exec.WithTimeout(defaults.ShortExecTimeout, launcher, p.Args...).CombinedOutput(log, true)
+		_, err := os.Stat(launcher)
 		if err != nil {
-			return fmt.Errorf("run bpf program '%s' with '%s' failed: %v", p.Name, launcher, err)
+			log.WithError(err).Warnf("run bpf program '%s' failed: unable to find command launcher '%q'", p.Name, launcher)
+			continue
+		}
+		_, err = exec.WithTimeout(defaults.ShortExecTimeout, launcher, p.Args...).CombinedOutput(log, true)
+		if err != nil {
+			return fmt.Errorf("run bpf program '%s' with '%q' failed: %v", p.Name, launcher, err)
 		}
 
 		log.WithFields(logrus.Fields{
 			"launcher": launcher,
 			"args":     p.Args,
-		}).Infof("%s: %s", p.Name, p.Description)
+		}).Infof("Started bpf program %s: %s", p.Name, p.Description)
 	}
 
 	return nil
