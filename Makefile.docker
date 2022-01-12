@@ -5,7 +5,7 @@
 
 DOCKER ?= docker
 CONTAINER_ENGINE ?= docker
-DOCKER_BUILD_PROGRESS ?= auto
+DOCKER_BUILD_PROGRESS ?= plain
 DOCKER_REGISTRY ?= docker.io
 DOCKER_BUILDER := $(shell docker buildx ls | grep -E -e "[a-zA-Z0-9-]+ \*" | cut -d ' ' -f1)
 
