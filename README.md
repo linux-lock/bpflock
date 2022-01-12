@@ -110,11 +110,14 @@ Documentation files can be found [here](https://github.com/linux-lock/bpflock/tr
 
 ## 5. Build
 
-bpflock uses [docker BuildKit](https://docs.docker.com/develop/develop-images/build_enhancements/) to build and [Golang](https://go.dev/doc/install) for running tests.
+bpflock uses [docker BuildKit](https://docs.docker.com/develop/develop-images/build_enhancements/) to build and
+[Golang](https://go.dev/doc/install) to make some checks and run tests. bpflock is built inside Ubuntu container that
+downloads the standard golang package.
 
 To build it just run:
 
 ```bash
+git submodule update --init
 make
 ```
 
