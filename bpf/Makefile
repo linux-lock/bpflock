@@ -23,9 +23,9 @@ msg = @printf '  %-8s %s%s\n' "$(1)" "$(notdir $(2))" "$(if $(3), $(3))";
 endif
 
 TARGETS = \
-        kimglock \
         bpfrestrict \
         kmodlock \
+        # kimglock \
         #
 
 COMMON_OBJ = \
