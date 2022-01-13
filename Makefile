@@ -4,7 +4,7 @@
 # Copyright 2017-2020 Authors of Cilium
 
 ##@ Default target
-all: bpflock-img  ## Default builds bpflock docker image.
+all: image/bpflock  ## Default builds bpflock docker image.
 	@echo "Build finished."
 
 # We need this to load in-container related variables
@@ -12,11 +12,11 @@ export BASE_IMAGE := $(BASE_IMAGE)
 
 include Makefile.defs
 
-ifndef BASE_IMAGE
+ifeq ($(strip, $(BASE_IMAGE)),)
 -include Makefile.docker
 endif
 
-ifdef GO
+ifneq ($(strip $(GO)),)
 GOFILES_EVAL := $(subst _$(ROOT_DIR)/,,$(shell $(GO) list -find -e ./...))
 GOFILES ?= $(GOFILES_EVAL)
 TESTPACKAGES := $(shell $(GO_LIST) ./... | grep -v "github.com/linux-lock/bpflock/test/runtime")
@@ -91,14 +91,14 @@ test: ## Run unit tests
 check-code: gofmt govet test ## Run checks on code
 
 .PHONY: integration
-integration: check-code bpflock-integration-img ## Build bpflock-integration tests docker image and run the tests.
+integration: check-code image/bpflock-integration ## Build bpflock-integration tests docker image and run the tests.
 	$(GO) test -failfast -count=1 -v ./test/runtime/...
 
 .PHONY: help
 help: Makefile
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-28s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_\-/]+:.*?##/ { printf "  \033[36m%-28s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 	@# There is also a list of target we have to manually put the information about.
 	@# These are templated targets.
-	$(call print_help_line, "bpflock-builder-img", "Build bpflock-builder docker image")
-	$(call print_help_line, "bpflock-img", "Build bpflock docker image")
-	$(call print_help_line, "bpflock-integration-img", "Build bpflock-integration tests docker image")
+	$(call print_help_line, "image/bpflock-builder", "Build bpflock-builder docker image")
+	$(call print_help_line, "image/bpflock", "Build bpflock docker image")
+	$(call print_help_line, "image/bpflock-integration", "Build bpflock-integration tests docker image")

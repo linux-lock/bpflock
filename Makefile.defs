@@ -63,7 +63,7 @@ BPFTOOL ?= $(abspath ./tools/$(ARCH)/bpftool)
 # Go environment
 GO ?= $(shell command -v go 2> /dev/null)
 
-ifdef GO
+ifneq ($(strip $(GO)),)
 
 # go build/test/clean flags
 # these are declared here so they are treated explicitly

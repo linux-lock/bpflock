@@ -112,51 +112,52 @@ $(1)-debug: UNSTRIPPED=-unstripped
 $(1)-debug: $(1)
 endef
 
-# bpflock-builder-img image
-$(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock-builder-img,$(ROOT_DIR)/images/builder/,bpflock-builder,$(DOCKER_IMAGE_TAG)))
+$(eval $(call DOCKER_IMAGE_TEMPLATE,image/bpflock-builder,$(ROOT_DIR)/images/builder/,bpflock-builder,$(DOCKER_IMAGE_TAG)))
 
-.PHONY: bpflock-builder-tag
-bpflock-builder-tag: bpflock-builder ## Tag bpflock-builder images.
+# Build bpflock image
+$(eval $(call DOCKER_IMAGE_TEMPLATE,image/bpflock,$(ROOT_DIR)/images/docker/,bpflock,$(GIT_TAG)))
+
+## Tag built images
+.PHONY: image/bpflock-builder-tag
+image/bpflock-builder-tag: ## Tag bpflock-builder images.
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock-builder:$(DOCKER_IMAGE_TAG) $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_TAG)
 
-# bpflock-img
-$(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock-img,$(ROOT_DIR)/images/docker/,bpflock,$(GIT_TAG)))
-
-.PHONY: bpflock-tag
-bpflock-tag: bpflock ## Tag docker bpflock image.
+.PHONY: image/bpflock-tag
+image/bpflock-tag: ## Tag docker bpflock image.
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG) $(IMAGE_REPOSITORY)/bpflock:$(DOCKER_IMAGE_TAG)
 
-.PHONY: bpflock-builder-tag
-bpflock-builder-push: bpflock-builder-tag ## Push bpflock builder images.
+## Push built images
+.PHONY: image/bpflock-builder-push
+image/bpflock-builder-push: image/bpflock-builder-tag ## Push bpflock builder images.
 	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_TAG)
 	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock-builder:$(GIT_TAG) image pushed'
 	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock-builder:$(DOCKER_IMAGE_TAG)
 	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock-builder:$(DOCKER_IMAGE_TAG) image pushed'
 
-.PHONY: bpflock-builder-push
-bpflock-push: bpflock-tag ## Push bpflock images.
+.PHONY: image/bpflock-push
+image/bpflock-push: image/bpflock-tag ## Push bpflock images.
 	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG)
 	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG) image pushed'
 	$(CONTAINER_ENGINE) push $(IMAGE_REPOSITORY)/bpflock:$(DOCKER_IMAGE_TAG)
 	@echo 'Build: $(IMAGE_REPOSITORY)/bpflock:$(GIT_TAG) image pushed'
 
-# bpflock-integration-img
-$(eval $(call DOCKER_IMAGE_TEMPLATE,bpflock-integration-img,$(ROOT_DIR)/images/docker/,bpflock-integration,$(DOCKER_IMAGE_TAG)))
+# image/bpflock-integration
+$(eval $(call DOCKER_IMAGE_TEMPLATE,image/bpflock-integration,$(ROOT_DIR)/images/docker/,bpflock-integration,$(DOCKER_IMAGE_TAG)))
 
 #
 # docker-*-all targets are mainly used from the CI
 #
 .PHONY: images
-images: bpflock-builder-img bpflock-img  ## Build all bpflock related docker images.
+images: image/bpflock-builder image/bpflock  ## Build all bpflock related docker images.
 
-.PHONY: tag
-tag: bpflock-builder-tag bpflock-tag ## Tag and push all bpflock related docker images.
+.PHONY: images/tag
+images/tag: image/bpflock-builder-tag image/bpflock-tag ## Tag all bpflock related docker images.
 
-.PHONY: push
-push: bpflock-builder-push bpflock-push ## Push all bpflock related docker images.
+.PHONY: images/push
+images/push: image/bpflock-builder-push image/bpflock-push ## Push all bpflock related docker images.
 
-.PHONY: clean-images
-clean-images: ## Remove bpflock docker images including builder.
+.PHONY: images/clean
+images/clean: ## Remove bpflock docker images including builder.
 	@$(DOCKER) container rm -f $(shell $(DOCKER) container ls -aq | grep "bpflock" -) 2>/dev/null || true
 	@$(DOCKER) rmi -f $(shell $(DOCKER) images --format '{{.Repository}}:{{.Tag}}' | grep "bpflock" -) 2>/dev/null || true
 
