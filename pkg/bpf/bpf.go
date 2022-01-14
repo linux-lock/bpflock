@@ -60,8 +60,9 @@ func bpftoolGetProgID(progName string) (string, error) {
 // BpfLsmEnable will execute all programs according to configuration
 // and corresponding bpf programs will be pinned automatically
 func BpfLsmEnable() error {
-	spec := option.Config.BpfMeta.Spec
+	spec := option.Config.BpfMeta.Bpfspec
 
+	i := 0
 	for _, p := range spec.Programs {
 		launcher := filepath.Join(option.Config.BpfDir, p.Command)
 		_, err := os.Stat(launcher)
@@ -78,6 +79,11 @@ func BpfLsmEnable() error {
 			"launcher": launcher,
 			"args":     p.Args,
 		}).Infof("Started bpf program %s: %s", p.Name, p.Description)
+		i++
+	}
+
+	if i == 0 {
+		return fmt.Errorf("unable to start all bpf programs")
 	}
 
 	return nil
