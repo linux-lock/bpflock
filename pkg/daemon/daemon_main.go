@@ -123,6 +123,9 @@ func initializeFlags() {
 	flags.Int(option.AgentHealthPort, defaults.AgentHealthPort, "TCP port for agent health status API")
 	option.BindEnv(option.AgentHealthPort)
 
+	flags.Bool(option.RmBpfOnExit, defaults.RmBpfOnExit, "Remove bpf programs and all installed security features on exit")
+	option.BindEnv(option.RmBpfOnExit)
+
 	//flags.String(option.BPFRoot, defaults.DefaultMapRoot , "Path to BPF filesystem")
 	//option.BindEnv(option.BPFRoot)
 
@@ -176,6 +179,24 @@ func initializeFlags() {
 
 	flags.Int(option.GopsPort, defaults.GopsPortAgent, "Port for gops server to listen on")
 	option.BindEnv(option.GopsPort)
+
+	flags.String(option.BpfRestrictProfile, "", "bpfrestrict security profile to restrict bpf() system call")
+	option.BindEnv(option.BpfRestrictProfile)
+
+	flags.String(option.BpfRestrictBlock, "", "bpfrestrict block operations")
+	option.BindEnv(option.BpfRestrictBlock)
+
+	flags.String(option.KmodLockProfile, "", "kmodlock bpf security profile to restrict kernel module operations")
+	option.BindEnv(option.KmodLockProfile)
+
+	flags.String(option.KmodLockBlock, "", "kmodlock block operations")
+	option.BindEnv(option.KmodLockBlock)
+
+	flags.String(option.KimgLockProfile, "", "kimglock bpf security profile to restrict direct and indirect kernel image modification")
+	option.BindEnv(option.KimgLockProfile)
+
+	flags.String(option.KimgLockAllow, "", "kimglock allow operations")
+	option.BindEnv(option.KimgLockAllow)
 
 	viper.BindPFlags(flags)
 }

@@ -335,7 +335,6 @@ func (c *DaemonConfig) areBpfProgramsOk() error {
 			}
 		}
 
-		fmt.Printf(" name: %+v  - profile:%s\n", p, profile)
 		if isBpfProfileValid(profile) == false {
 			return fmt.Errorf("BpfMeta invalid program '%s' profile is not supported", p.Name)
 		}
@@ -483,8 +482,6 @@ func ReadBpfDirConfig(dirName string, BpfMeta *models.BpfMeta) error {
 			log.WithField(logfields.Path, viper.ConfigFileUsed()).
 				Info("Using bpflock config from file")
 		}
-
-		fmt.Printf("%v\n", viper.AllSettings())
 
 		bpfConf := models.BpfMeta{}
 		err = viper.Unmarshal(&bpfConf)
@@ -744,7 +741,6 @@ func InitConfig(cmd *cobra.Command, programName, configName string) func() {
 		Config.BpfConfigDir = viper.GetString(BpfConfigDir)
 		viper.SetEnvPrefix("bpflock")
 
-		fmt.Printf("frist:\n%v\n----\n", viper.AllSettings())
 		if Config.BpfConfigDir == "" {
 			log.Fatalf("flag option '%s' is not set", Config.BpfConfigDir)
 		}
@@ -756,7 +752,6 @@ func InitConfig(cmd *cobra.Command, programName, configName string) func() {
 			log.WithError(err).Fatalf("unable to process bpf configurations: %s", Config.BpfConfigDir)
 		}
 
-		fmt.Printf("\n%v\n", viper.AllSettings())
 		if Config.ConfigDir != "" {
 			if _, err := os.Stat(Config.ConfigDir); os.IsNotExist(err) {
 				log.Fatalf("Non-existent configuration directory %s", Config.ConfigDir)
@@ -776,7 +771,6 @@ func InitConfig(cmd *cobra.Command, programName, configName string) func() {
 			}
 		}
 
-		fmt.Printf("\n%v\n", viper.AllSettings())
 		if Config.ConfigFile != "" {
 			viper.SetConfigFile(Config.ConfigFile)
 		} else {
@@ -801,7 +795,5 @@ func InitConfig(cmd *cobra.Command, programName, configName string) func() {
 		if err := mergeBpfMetaConfig(&BpfM); err != nil {
 			log.WithError(err).Fatal("Unable to merge bpf security configuration")
 		}
-
-		fmt.Printf("\n%v\n", viper.AllSettings())
 	}
 }
