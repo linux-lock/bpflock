@@ -18,7 +18,7 @@ Note: bpflock is currently in **experimental stage**, it may break, security sem
 
 bpflock combines multiple bpf programs to strength Linux security. By restricting access to a various range of Linux features, bpflock is able to reduce the attack surface and block some well known attack techniques.
 
-Only programs like container managers, systemd and other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) may be able to access those features, containers that run on their own namespace will be restricted. If bpflock bpf programs run under a deny permission model then all programs/containers will be denied access even privileged ones.
+Only programs like container managers, systemd and other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) may be able to access those features, containers that run on their own namespace will be restricted. If bpflock bpf programs run under a `restricted` profile then all programs/containers will be denied access even privileged ones.
 
 bpflock protects Linux machines using a system wide approach taking advantage of [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html). The permission model will be augmented soon to include per cgroupv2 filtering.
 
@@ -55,18 +55,18 @@ bpflock bpf programs offer multiple security protections that can be classified 
 
 ### 2.2 Semantics
 
-bpflock tries to keep the security semantics simple without introducing complex policies. It uses a simple `permission` model that takes the following values:
+bpflock tries to keep the security semantics simple without introducing complex policies. It uses a simple `profile` model to restrict access to some Linux features. bpflock supports three different profiles to broadly cover the security spectrum:
 
-* `permission`: each bpf program supports three different permission models.
-  - `allow|none` : access is allowed. It can be used to log security events.
-  - `restrict` : access is restricted. Only processes that are in the initial pid namespace.
-  - `deny` : access is denied for all processes.
+* `profile`:
+  - `allow|none|privileged` : they are the same, they defined the least secure profile. In this profile access is allowed for all processes and it logged which is useful for security events.
+  - `baseline` : minimal restricive profile that allows access to only processes that are in the initial pid namespace.
+  - `restricted` : heavily restricted profile where access is denied for all processes.
 
 * `Allowed` or `blocked` operations/commands:
 
-  Depending on the `permission` model a list of allowed or blocked commands can be specified with:
-  - `allow` : comma-separated list of allowed operations. Valid under `restrict` and `deny` permissions.
-  - `block` : comma-separated list of blocked operations. Valid under `restrict` permission.
+  If running under a `baseline` profile, then a list of allowed or blocked commands can be specified where subsys maps to the corresponding bpf subsystem providing the protection.
+  - `--subsys-allow` : comma-separated list of allowed operations. Valid under `baseline` profile, this is useful for applications that are too specific and require privileged operations, it will reduce the use of the `allow | privileged` profile and offer a case-by-case definitions.
+  - `--subsys-block` : comma-separated list of blocked operations. Valid under `baseline` profile, it is useful to achieve a more `restricted` profile. The other way from `restricted` to `baseline` is not supported.
 
 For bpf security examples check [bpflock configuration examples](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/)
 
