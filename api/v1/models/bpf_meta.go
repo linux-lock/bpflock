@@ -18,28 +18,28 @@ import (
 // swagger:model BpfMeta
 type BpfMeta struct {
 
+	// bpfmetadata
+	Bpfmetadata *BpfMetadata `json:"bpfmetadata,omitempty"`
+
 	// Defines the versioned schema of this representation of an object
 	Bpfmetaver string `json:"bpfmetaver,omitempty"`
 
+	// bpfspec
+	Bpfspec *BpfSpec `json:"bpfspec,omitempty"`
+
 	// Kind is a string value representing the REST resource this object represents.
 	Kind string `json:"kind,omitempty"`
-
-	// metadata
-	Metadata *BpfMetadata `json:"metadata,omitempty"`
-
-	// spec
-	Spec *BpfSpec `json:"spec,omitempty"`
 }
 
 // Validate validates this bpf meta
 func (m *BpfMeta) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateMetadata(formats); err != nil {
+	if err := m.validateBpfmetadata(formats); err != nil {
 		res = append(res, err)
 	}
 
-	if err := m.validateSpec(formats); err != nil {
+	if err := m.validateBpfspec(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -49,17 +49,17 @@ func (m *BpfMeta) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *BpfMeta) validateMetadata(formats strfmt.Registry) error {
-	if swag.IsZero(m.Metadata) { // not required
+func (m *BpfMeta) validateBpfmetadata(formats strfmt.Registry) error {
+	if swag.IsZero(m.Bpfmetadata) { // not required
 		return nil
 	}
 
-	if m.Metadata != nil {
-		if err := m.Metadata.Validate(formats); err != nil {
+	if m.Bpfmetadata != nil {
+		if err := m.Bpfmetadata.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("metadata")
+				return ve.ValidateName("bpfmetadata")
 			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("metadata")
+				return ce.ValidateName("bpfmetadata")
 			}
 			return err
 		}
@@ -68,17 +68,17 @@ func (m *BpfMeta) validateMetadata(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *BpfMeta) validateSpec(formats strfmt.Registry) error {
-	if swag.IsZero(m.Spec) { // not required
+func (m *BpfMeta) validateBpfspec(formats strfmt.Registry) error {
+	if swag.IsZero(m.Bpfspec) { // not required
 		return nil
 	}
 
-	if m.Spec != nil {
-		if err := m.Spec.Validate(formats); err != nil {
+	if m.Bpfspec != nil {
+		if err := m.Bpfspec.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("spec")
+				return ve.ValidateName("bpfspec")
 			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("spec")
+				return ce.ValidateName("bpfspec")
 			}
 			return err
 		}
@@ -91,11 +91,11 @@ func (m *BpfMeta) validateSpec(formats strfmt.Registry) error {
 func (m *BpfMeta) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.contextValidateMetadata(ctx, formats); err != nil {
+	if err := m.contextValidateBpfmetadata(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
-	if err := m.contextValidateSpec(ctx, formats); err != nil {
+	if err := m.contextValidateBpfspec(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -105,14 +105,14 @@ func (m *BpfMeta) ContextValidate(ctx context.Context, formats strfmt.Registry) 
 	return nil
 }
 
-func (m *BpfMeta) contextValidateMetadata(ctx context.Context, formats strfmt.Registry) error {
+func (m *BpfMeta) contextValidateBpfmetadata(ctx context.Context, formats strfmt.Registry) error {
 
-	if m.Metadata != nil {
-		if err := m.Metadata.ContextValidate(ctx, formats); err != nil {
+	if m.Bpfmetadata != nil {
+		if err := m.Bpfmetadata.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("metadata")
+				return ve.ValidateName("bpfmetadata")
 			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("metadata")
+				return ce.ValidateName("bpfmetadata")
 			}
 			return err
 		}
@@ -121,14 +121,14 @@ func (m *BpfMeta) contextValidateMetadata(ctx context.Context, formats strfmt.Re
 	return nil
 }
 
-func (m *BpfMeta) contextValidateSpec(ctx context.Context, formats strfmt.Registry) error {
+func (m *BpfMeta) contextValidateBpfspec(ctx context.Context, formats strfmt.Registry) error {
 
-	if m.Spec != nil {
-		if err := m.Spec.ContextValidate(ctx, formats); err != nil {
+	if m.Bpfspec != nil {
+		if err := m.Bpfspec.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("spec")
+				return ve.ValidateName("bpfspec")
 			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("spec")
+				return ce.ValidateName("bpfspec")
 			}
 			return err
 		}

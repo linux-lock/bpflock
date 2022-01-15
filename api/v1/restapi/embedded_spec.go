@@ -88,19 +88,19 @@ func init() {
     "BpfMeta": {
       "type": "object",
       "properties": {
+        "bpfmetadata": {
+          "$ref": "#/definitions/BpfMetadata"
+        },
         "bpfmetaver": {
           "description": "Defines the versioned schema of this representation of an object",
           "type": "string"
         },
+        "bpfspec": {
+          "$ref": "#/definitions/BpfSpec"
+        },
         "kind": {
           "description": "Kind is a string value representing the REST resource this object represents.",
           "type": "string"
-        },
-        "metadata": {
-          "$ref": "#/definitions/BpfMetadata"
-        },
-        "spec": {
-          "$ref": "#/definitions/BpfSpec"
         }
       }
     },
@@ -340,19 +340,19 @@ func init() {
     "BpfMeta": {
       "type": "object",
       "properties": {
+        "bpfmetadata": {
+          "$ref": "#/definitions/BpfMetadata"
+        },
         "bpfmetaver": {
           "description": "Defines the versioned schema of this representation of an object",
           "type": "string"
         },
+        "bpfspec": {
+          "$ref": "#/definitions/BpfSpec"
+        },
         "kind": {
           "description": "Kind is a string value representing the REST resource this object represents.",
           "type": "string"
-        },
-        "metadata": {
-          "$ref": "#/definitions/BpfMetadata"
-        },
-        "spec": {
-          "$ref": "#/definitions/BpfSpec"
         }
       }
     },

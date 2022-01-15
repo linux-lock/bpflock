@@ -69,9 +69,9 @@ definitions:
       kind:
         type: "string"
         description: "Kind is a string value representing the REST resource this object represents."
-      metadata:
+      bpfmetadata:
         $ref: "#/definitions/BpfMetadata"
-      spec:
+      bpfspec:
         $ref: "#/definitions/BpfSpec"
   BpfProgram:
     type: "object"
