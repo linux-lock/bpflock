@@ -19,15 +19,15 @@
 
 enum ki_reason {
         kireason_allow                  = 1,    /* Allow */
-        kireason_allow_exception,               /* Restrict but allow with exception */
-        kireason_restrict,                      /* Restrict */
-        kireason_deny,                          /* Deny */
+        kireason_baseline_exception,            /* Baseline but allow with exception */
+        kireason_baseline,                      /* Baseline */
+        kireason_restricted,                          /* Restricted */
 };
 
 enum bpflock_bpf_perm_flag {
         BPFLOCK_KI_ALLOW       = 1,
-        BPFLOCK_KI_RESTRICT,
-        BPFLOCK_KI_DENY,
+        BPFLOCK_KI_BASELINE,
+        BPFLOCK_KI_RESTRICTED,
 };
 
 enum lock_kimg_reason {
