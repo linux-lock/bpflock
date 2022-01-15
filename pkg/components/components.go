@@ -12,6 +12,10 @@ import (
 const (
 	// BpflockAgentName is the name of bpflock agent (daemon) process name.
 	BpflockAgentName = "bpflock"
+
+	BpfRestrict = "bpfrestrict"
+	KimgLock    = "kimglock"
+	KmodLock    = "kmodlock"
 )
 
 // IsBpflockAgent checks whether the current process is bpflock (daemon).
