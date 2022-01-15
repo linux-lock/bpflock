@@ -9,6 +9,10 @@ import (
 )
 
 const (
+
+	// RmBpfOnExit is the default value for option.DeleteBpfOnExit
+	RmBpfOnExit = true
+
 	// AgentHealthPort is the default value for option.AgentHealthPort
 	AgentHealthPort = 19876
 
@@ -91,4 +95,15 @@ const (
 
 	// EnableIPv6 is the default value for IPv6 enablement
 	EnableIPv6 = true
+
+	// BpfProfileAllow is the "allow" "none" or "privileged" profile
+	BpfProfileAllow      = "allow"
+	BpfProfileNone       = "none"
+	BpfProfilePrivileged = "privileged"
+
+	// BpfProfileBaseline is for privileged applications
+	BpfProfileBasleine = "baseline"
+
+	// BpfProfileRestricted is deny some privileged operations
+	BpfProfileRestricted = "restricted"
 )
