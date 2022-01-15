@@ -1,26 +1,24 @@
 bpfmetaver: "v1"
 kind: "bpf"
-metadata:
+bpfmetadata:
   name: bpflock
-spec:
+bpfspec:
   programs:
 #    - name: kimglock
 #      description: "Restrict both direct and indirect modification to a running kernel image" 
 #      doc: https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#1-kernel-image-lock-down
 #      command: kimglock
 #      args:
-#        - --permission=restrict
+#        - --profile=baseline
     - name: kmodlock
       description: "Restrict kernel module operations on modular kernels"
       doc: https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#2-kernel-modules-protections
       command: kmodlock
       args:
-        - -p=restrict
-        - --permission=restrict
+        - --profile=baseline
     - name: bpfrestrict
       description: "Restrict access to the bpf() system call"
       doc: https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#3-bpf-protection
       command: bpfrestrict
       args:
-        - -p=restrict
-        - --permission=restrict
+        - --profile=baseline
