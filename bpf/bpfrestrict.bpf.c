@@ -83,11 +83,11 @@ int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
                         return ret;
 
                 blocked = *val;
-                if (blocked == BPFLOCK_BPF_DENY)
+                if (blocked == BPFLOCK_BPF_RESTRICTED)
                         return -EPERM;
 
                 /* If restrict and not in init pid namespace deny access */
-                if (blocked == BPFLOCK_BPF_RESTRICT && !is_init_pid_ns())
+                if (blocked == BPFLOCK_BPF_BASELINE && !is_init_pid_ns())
                         return -EPERM;
 
                 k = BPFLOCK_BPF_OP;
@@ -145,11 +145,11 @@ int BPF_PROG(bpfrestrict_bpf_write, enum lockdown_reason what, int ret)
                 return ret;
 
         blocked = *val;
-        if (blocked == BPFLOCK_BPF_DENY)
+        if (blocked == BPFLOCK_BPF_RESTRICTED)
                 return -EPERM;
 
         /* If restrict and not in init pid namespace, then deny access */
-        if (blocked == BPFLOCK_BPF_RESTRICT && !is_init_pid_ns())
+        if (blocked == BPFLOCK_BPF_BASELINE && !is_init_pid_ns())
                 return -EPERM;
 
         k = BPFLOCK_BPF_OP;

@@ -34,22 +34,22 @@ const char *argp_program_bug_address =
 const char argp_program_doc[] =
 "bpflock bpfrestrict - restrict access to BPF system call.\n"
 "\n"
-"USAGE: bpfrestrict [--help] [-p PERM] [-b CMD]\n"
+"USAGE: bpfrestrict [--help] [-p PROFILE] [-b CMD]\n"
 "\n"
 "EXAMPLES:\n"
-"  # BPF is allowed.\n"
-"  bpfrestrict -p allow\n\n"
-"  # Restrict BPF system call to tasks in initial pid namespace.\n"
+"  # Allow profile: BPF is allowed.\n"
+"  bpfrestrict --profile=allow\n\n"
+"  # Baseline profile: restrict BPF system call to tasks in initial pid namespace.\n"
 "  bpfrestrict\n"
-"  bpfrestrict -p restrict\n\n"
-"  # Restrict BPF to tasks in initial pid namespace and\n"
+"  bpfrestrict --profile=baseline\n\n"
+"  # Baseline profile: restrict BPF to tasks in initial pid namespace and\n"
 "  # block the BPF load program command.\n"
-"  bpfrestrict -p restrict -b prog_load\n\n"
-"  # Deny BPF system call for all.\n"
-"  bpfrestrict -p deny\n";
+"  bpfrestrict --profile=baseline --block=prog_load\n\n"
+"  # Restricted profile: deny BPF system call for all.\n"
+"  bpfrestrict --profile=restricted\n";
 
 static const struct argp_option opts[] = {
-        { "permission", 'p', "PERM", 0, "Permission to apply, one of the following: allow, restrict or deny. Default value is: restrict." },
+        { "profile", 'p', "PROFILE", 0, "Profile to apply, one of the following: allow, baseline or restricted. Default value is: allow." },
         { "block", 'b', "CMD", 0, "Block BPF commands, possible values: 'map_create, prog_load, btf_load, bpf_write' " },
         { NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
         {},
@@ -70,7 +70,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
                 break;
         case 'p':
                 if (strlen(arg) + 1 > 64) {
-                        fprintf(stderr, "invaild -p|--permission argument: too long\n");
+                        fprintf(stderr, "invaild -p|--profile argument: too long\n");
                         argp_usage(state);
                 }
                 opt.perm = strndup(arg, strlen(arg));
@@ -100,14 +100,15 @@ static int setup_bpf_opt_map(struct bpfrestrict_bpf *skel, int *fd)
         }
 
         if (!opt.perm) {
-                opt.perm_int = BPFLOCK_BPF_RESTRICT;
+                opt.perm_int = BPFLOCK_BPF_ALLOW;
         } else {
-                if (strncmp(opt.perm, "deny", 4) == 0) {
-                        opt.perm_int = BPFLOCK_BPF_DENY;
-                } else if (strncmp(opt.perm, "restrict", 8) == 0) {
-                        opt.perm_int = BPFLOCK_BPF_RESTRICT;
+                if (strncmp(opt.perm, "restricted", 10) == 0) {
+                        opt.perm_int = BPFLOCK_BPF_RESTRICTED;
+                } else if (strncmp(opt.perm, "baseline", 8) == 0) {
+                        opt.perm_int = BPFLOCK_BPF_BASELINE;
                 } else if (strncmp(opt.perm, "allow", 5) == 0 ||
-                           strncmp(opt.perm, "none", 4) == 0) {
+                           strncmp(opt.perm, "none", 4) == 0 ||
+                           strncmp(opt.perm, "privileged", 10)) {
                         opt.perm_int = BPFLOCK_BPF_ALLOW;
                 }
         }
@@ -289,14 +290,14 @@ int main(int argc, char **argv)
                 i++;
         }
 
-        if (opt.perm_int == BPFLOCK_BPF_DENY) {
-                printf("%s: success: The bpf() syscall is now disabled - delete pinned file '%s' to re-enable\n",
+        if (opt.perm_int == BPFLOCK_BPF_RESTRICTED) {
+                printf("%s: success: profile: restricted - the bpf() syscall is now disabled - delete pinned file '%s' to re-enable\n",
                         LOG_BPFLOCK, bpf_security_map.pin_path);
-        } else if (opt.perm_int == BPFLOCK_BPF_RESTRICT) {
-                printf("%s: success: The bpf() syscall is now restricted only to initial pid namespace - delete pinned file '%s' to re-enable\n",
+        } else if (opt.perm_int == BPFLOCK_BPF_BASELINE) {
+                printf("%s: success: profile: baseline - the bpf() syscall is now restricted only to initial pid namespace - delete pinned file '%s' to re-enable\n",
                         LOG_BPFLOCK, bpf_security_map.pin_path);
         } else {
-                printf("%s: The bpf() syscall is allowed - delete pinned file '%s' to disable access logging.\n",
+                printf("%s: success: profile: allow - the bpf() syscall is allowed - delete pinned file '%s' to disable access logging.\n",
                         LOG_BPFLOCK, bpf_security_map.pin_path);
         }
 
