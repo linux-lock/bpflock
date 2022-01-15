@@ -35,6 +35,9 @@ const (
 	// AgentHealthPort is the TCP port for agent health status API
 	AgentHealthPort = "agent-health-port"
 
+	// RmBpfOnExit if true deletes bpf programs when bpflock daemon exits
+	RmBpfOnExit = "remove-bpf-programs"
+
 	// BPFRoot is the Path to BPF filesystem
 	//BPFRoot = "bpf-root"
 
@@ -99,6 +102,17 @@ const (
 
 	// CMDRef is the path to cmdref output directory
 	CMDRef = "cmdref"
+
+	// bpfrestrict
+	BpfRestrictProfile = "bpfrestrict-profile"
+	BpfRestrictBlock   = "bpfrestrict-block"
+
+	// kmodlock
+	KmodLockProfile = "kmodlock-profile"
+	KmodLockBlock   = "kmodlock-block"
+
+	KimgLockProfile = "kimglock-profile"
+	KimgLockAllow   = "kimglock-allow"
 
 	bpflockEnvPrefix = "BPFLOCK_"
 )
@@ -174,6 +188,9 @@ type DaemonConfig struct {
 	// RestoreState enables restoring the state from previous running daemons.
 	RestoreState bool
 
+	// Remove Bpf programs on exit
+	RmBpfOnExit bool
+
 	// StateDir is the directory where runtime state of endpoints is stored
 	StateDir string
 
@@ -218,24 +235,35 @@ type DaemonConfig struct {
 	PProfPort           int
 	PrometheusServeAddr string
 
-	BpfMeta models.BpfMeta
+	BpfMeta *models.BpfMeta
 }
 
 var (
+	BpfM = models.BpfMeta{
+		Bpfmetaver: "v1",
+		Kind:       "bpf",
+		Bpfmetadata: &models.BpfMetadata{
+			Name: components.BpflockAgentName,
+		},
+		Bpfspec: &models.BpfSpec{
+			Programs: make([]*models.BpfProgram, 0),
+		},
+	}
+
 	BpflockBpfProgs = map[string]models.BpfProgram{
 		// For now lets keep bpf programs sorted here
 		// kernel features restrictions priority starts from 50
-		"kimglock": {
+		components.KimgLock: {
 			Name:        "kimglock",
 			Priority:    50,
 			Description: "Restrict both direct and indirect modification to a running kernel image",
 		},
-		"kmodlock": {
+		components.KmodLock: {
 			Name:        "kmodlock",
 			Priority:    60,
 			Description: "Restrict kernel module operations on modular kernels",
 		},
-		"bpfrestrict": {
+		components.BpfRestrict: {
 			Name:        "bpfrestrict",
 			Priority:    90,
 			Description: "Restrict access to the bpf() system call",
@@ -282,7 +310,42 @@ func (c *DaemonConfig) IPv6Enabled() bool {
 	return c.EnableIPv6
 }
 
-func isBpfMetaOk(bpfMeta *models.BpfMeta) error {
+func isBpfProfileValid(profile string) bool {
+	switch profile {
+	case "allow", "none", "privileged", "baseline", "restricted":
+		return true
+	}
+	return false
+}
+
+func (c *DaemonConfig) areBpfProgramsOk() error {
+	bpfMeta := c.BpfMeta
+	if bpfMeta.Bpfspec == nil || len(bpfMeta.Bpfspec.Programs) == 0 {
+		return fmt.Errorf("spec and bpf programs not valid")
+	}
+
+	spec := bpfMeta.Bpfspec
+	for _, p := range spec.Programs {
+		profile := ""
+		for _, n := range p.Args {
+			if strings.HasPrefix(n, "--profile") {
+				arg := strings.Split(n, "=")
+				profile = arg[1]
+				break
+			}
+		}
+
+		fmt.Printf(" name: %+v  - profile:%s\n", p, profile)
+		if isBpfProfileValid(profile) == false {
+			return fmt.Errorf("BpfMeta invalid program '%s' profile is not supported", p.Name)
+		}
+	}
+
+	return nil
+}
+
+func (c *DaemonConfig) isBpfMetaOk() error {
+	bpfMeta := c.BpfMeta
 	if bpfMeta.Bpfmetaver != "v1" {
 		return fmt.Errorf("bpfmetaver '%s' not supported", bpfMeta.Bpfmetaver)
 	}
@@ -291,32 +354,17 @@ func isBpfMetaOk(bpfMeta *models.BpfMeta) error {
 		return fmt.Errorf("kind '%s' not supported", bpfMeta.Kind)
 	}
 
-	if bpfMeta.Metadata.Name != components.BpflockAgentName {
+	if bpfMeta.Bpfmetadata.Name != components.BpflockAgentName {
 		return fmt.Errorf("metadata name launcher not valid")
 	}
 
-	return nil
-}
-
-func areBpfProgramsOk(bpfMeta *models.BpfMeta) error {
-	if bpfMeta.Spec == nil || len(bpfMeta.Spec.Programs) == 0 {
-		return fmt.Errorf("spec and bpf programs not valid")
-	}
-
-	// TODO add more checks here
-
-	return nil
+	return c.areBpfProgramsOk()
 }
 
 // Validate validates the daemon configuration
 func (c *DaemonConfig) Validate() error {
 
-	err := isBpfMetaOk(&c.BpfMeta)
-	if err != nil {
-		return fmt.Errorf("invalid BpfMeta: %v", err)
-	}
-
-	err = areBpfProgramsOk(&c.BpfMeta)
+	err := c.isBpfMetaOk()
 	if err != nil {
 		return fmt.Errorf("invalid BpfMeta: %v", err)
 	}
@@ -324,14 +372,15 @@ func (c *DaemonConfig) Validate() error {
 	return nil
 }
 
-// ValidateBpfConfig checks whether the configuration of bpf programs is valid
+// validateBpfConfig checks whether the configuration of bpf programs is valid
+// and stores passed programs into storeProgs
 func validateBpfMeta(bpfMeta *models.BpfMeta, storeProgs *[]*models.BpfProgram) error {
 	if bpfMeta == nil || storeProgs == nil {
 		return fmt.Errorf("nil values passed")
 	}
 
 	if bpfMeta.Bpfmetaver != "v1" {
-		return fmt.Errorf("version '%s' not supported", bpfMeta.Bpfmetaver)
+		return fmt.Errorf("bpfmetaver '%s' not supported", bpfMeta.Bpfmetaver)
 	}
 
 	if bpfMeta.Kind != "bpf" {
@@ -339,23 +388,23 @@ func validateBpfMeta(bpfMeta *models.BpfMeta, storeProgs *[]*models.BpfProgram) 
 	}
 
 	// Check nil first
-	if bpfMeta.Metadata == nil || bpfMeta.Metadata.Name != components.BpflockAgentName {
-		return fmt.Errorf("metadata name launcher not valid")
+	if bpfMeta.Bpfmetadata == nil || bpfMeta.Bpfmetadata.Name != components.BpflockAgentName {
+		return fmt.Errorf("bpfmetadata name launcher not valid")
 	}
 
-	spec := *bpfMeta.Spec
+	spec := *bpfMeta.Bpfspec
 	if len(spec.Programs) == 0 {
-		return fmt.Errorf("spec.programs is empty")
+		return fmt.Errorf("bpfspec.programs is empty")
 	}
 
 	for _, prog := range spec.Programs {
 		_, ok := BpflockBpfProgs[prog.Name]
 		if !ok {
-			return fmt.Errorf("program '%s' not supported", prog.Name)
+			return fmt.Errorf("bpf program '%s' not supported", prog.Name)
 		}
 		for _, p := range *storeProgs {
 			if prog.Name == p.Name {
-				return fmt.Errorf("program '%s' was already provided, duplicate entry", prog.Name)
+				log.Warnf("program '%s' was already provided, duplicate entry", prog.Name)
 			}
 		}
 		*storeProgs = append(*storeProgs, prog)
@@ -383,28 +432,10 @@ func validateConfigmap(cmd *cobra.Command, m map[string]interface{}) (error, str
 	return nil, ""
 }
 
-func makeBpfMeta(dst *models.BpfMeta, src *models.BpfMeta) error {
-	if dst.Bpfmetaver == "" {
-		dst.Bpfmetaver = src.Bpfmetaver
-	}
-
-	if dst.Kind != "" {
-		dst.Kind = src.Kind
-	}
-
-	if dst.Metadata == nil {
-		dst.Metadata = &models.BpfMetadata{Name: components.BpflockAgentName}
-	}
-
-	if dst.Spec == nil {
-		dst.Spec = &models.BpfSpec{Programs: make([]*models.BpfProgram, 0)}
-	}
-
-	return nil
-}
-
-func populateBpfMetaProgs(dst *models.BpfMeta, progs []*models.BpfProgram) error {
-	for _, p := range progs {
+func populateBpfMetaProgs(dst *models.BpfMeta, passedprogs []*models.BpfProgram) error {
+	pushed := make(map[string]*models.BpfProgram, len(passedprogs))
+	spec := dst.Bpfspec
+	for _, p := range passedprogs {
 		pbpf, ok := BpflockBpfProgs[p.Name]
 		if !ok {
 			return fmt.Errorf("unable to validate program '%s' not supported", p.Name)
@@ -418,58 +449,71 @@ func populateBpfMetaProgs(dst *models.BpfMeta, progs []*models.BpfProgram) error
 			Args:        p.Args,
 		}
 
-		dst.Spec.Programs = append(dst.Spec.Programs, prog)
+		if _, ok = pushed[p.Name]; ok {
+			// Already pushed lets overwrite previous entry
+			log.Warnf("program '%s' was already provided, overwriting previous duplicate entry.", prog.Name)
+		}
+
+		pushed[p.Name] = prog
+	}
+
+	for _, v := range pushed {
+		spec.Programs = append(spec.Programs, v)
 	}
 
 	return nil
 }
 
-func ReadBpfDirConfig(dirName string) (*models.BpfMeta, error) {
-	m, err := ReadDirConfig(dirName)
+func ReadBpfDirConfig(dirName string, BpfMeta *models.BpfMeta) error {
+	files, err := readDirConfig(dirName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read configuration directory %s", dirName)
+		return fmt.Errorf("unable to read configuration directory %s", dirName)
 	}
 
-	bpfMeta := models.BpfMeta{}
 	progs := make([]*models.BpfProgram, 0)
-	for name, data := range m {
-		if val := fmt.Sprintf("%v", data); val != "" {
-			fileName := filepath.Join(dirName, name)
-			viper.SetConfigType("yaml")
-			viper.ReadConfig(strings.NewReader(val))
+	for _, f := range files {
+		fileName := filepath.Join(dirName, f.Name())
 
-			bpfConf := models.BpfMeta{}
-			err = viper.Unmarshal(&bpfConf)
-			if err != nil {
-				return nil, fmt.Errorf("config '%s' unable to decode BpfMeta struct: %v", fileName, err)
-			}
-
-			err = validateBpfMeta(&bpfConf, &progs)
-			if err != nil {
-				return nil, fmt.Errorf("config '%s' unable to validate BpfMeta : %v", fileName, err)
-			}
-
-			makeBpfMeta(&bpfMeta, &bpfConf)
-
-			log.WithField(logfields.Path, filepath.Join(dirName, name)).Info("Using bpflock bpf security configuration from file")
+		viper.SetConfigType("yaml")
+		viper.SetConfigFile(fileName)
+		err = viper.ReadInConfig()
+		if err != nil {
+			return fmt.Errorf("config '%s' unable to read with viper: %v", fileName, err)
+		} else {
+			log.WithField(logfields.Path, viper.ConfigFileUsed()).
+				Info("Using bpflock config from file")
 		}
+
+		fmt.Printf("%v\n", viper.AllSettings())
+
+		bpfConf := models.BpfMeta{}
+		err = viper.Unmarshal(&bpfConf)
+		if err != nil {
+			return fmt.Errorf("config '%s' unable to decode BpfMeta struct: %v", fileName, err)
+		}
+
+		err = validateBpfMeta(&bpfConf, &progs)
+		if err != nil {
+			return fmt.Errorf("config '%s' unable to validate BpfMeta : %v", fileName, err)
+		}
+
+		log.WithField(logfields.Path, fileName).Info("Using bpflock bpf security configuration from file")
 	}
 
-	populateBpfMetaProgs(&bpfMeta, progs)
+	populateBpfMetaProgs(BpfMeta, progs)
 
-	sort.Sort(BpfByPriority(bpfMeta.Spec.Programs))
+	sort.Sort(BpfByPriority(BpfMeta.Bpfspec.Programs))
 
-	return &bpfMeta, nil
+	return nil
 }
 
-// ReadDirConfig reads the given directory and returns a map that maps the
-// filename to the contents of that file.
-func ReadDirConfig(dirName string) (map[string]interface{}, error) {
-	m := map[string]interface{}{}
+func readDirConfig(dirName string) ([]os.DirEntry, error) {
 	files, err := os.ReadDir(dirName)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("unable to read configuration directory: %s", err)
 	}
+
+	retf := make([]os.DirEntry, 0)
 	for _, f := range files {
 		if f.IsDir() {
 			continue
@@ -495,6 +539,22 @@ func ReadDirConfig(dirName string) (map[string]interface{}, error) {
 			continue
 		}
 
+		retf = append(retf, f)
+	}
+
+	return retf, nil
+}
+
+// ReadDirConfig reads the given directory and returns a map that maps the
+// filename to the contents of that file.
+func ReadDirConfig(dirName string) (map[string]interface{}, error) {
+	m := map[string]interface{}{}
+	files, err := readDirConfig(dirName)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("unable to read configuration directory: %s", err)
+	}
+	for _, f := range files {
+		fName := filepath.Join(dirName, f.Name())
 		b, err := os.ReadFile(fName)
 		if err != nil {
 			log.WithError(err).Warnf("Unable to read configuration file %q", fName)
@@ -506,13 +566,17 @@ func ReadDirConfig(dirName string) (map[string]interface{}, error) {
 }
 
 // MergeBpfMetaConfig merges the given configuration with viper's configuration.
-func mergeBpfMetaConfig(bpfMeta *models.BpfMeta) error {
-	data, err := bpfMeta.MarshalBinary()
+func mergeBpfMetaConfig(BpfMeta *models.BpfMeta) error {
+	data, err := BpfMeta.MarshalBinary()
 	if err != nil {
 		return err
 	}
 
-	return viper.MergeConfig(bytes.NewReader(data))
+	err = viper.MergeConfig(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("unable to merge bpf programs configuration: %s", err)
+	}
+	return nil
 }
 
 // MergeConfig merges the given configuration map with viper's configuration.
@@ -541,11 +605,56 @@ func (c *DaemonConfig) Populate() {
 	c.SocketPath = defaults.SockPath
 	c.EnableIPv4 = viper.GetBool(EnableIPv4Name)
 	c.EnableIPv6 = viper.GetBool(EnableIPv6Name)
+	c.RmBpfOnExit = viper.GetBool(RmBpfOnExit)
 
-	err := viper.Unmarshal(&c.BpfMeta)
-	if err != nil {
-		log.WithError(err).Fatal("Unable to set BpfMeta configuration from viper")
+	bpfrargs := ""
+	value := viper.GetString(BpfRestrictProfile)
+	if value != "" {
+		bpfrargs = fmt.Sprintf("--profile=%s", value)
+		value = viper.GetString(BpfRestrictBlock)
+		if value != "" {
+			bpfrargs = fmt.Sprintf("%s --block=%s", bpfrargs, value)
+		}
 	}
+
+	kimgrargs := ""
+	value = viper.GetString(KimgLockProfile)
+	if value != "" {
+		kimgrargs = fmt.Sprintf("--profile=%s", value)
+		value = viper.GetString(KimgLockAllow)
+		if value != "" {
+			kimgrargs = fmt.Sprintf("%s --allow=%s", kimgrargs, value)
+		}
+	}
+
+	kmodrargs := ""
+	value = viper.GetString(KimgLockProfile)
+	if value != "" {
+		kmodrargs = fmt.Sprintf("--profile=%s", value)
+		value = viper.GetString(KmodLockBlock)
+		if value != "" {
+			kmodrargs = fmt.Sprintf("%s --block=%s", kmodrargs, value)
+		}
+	}
+
+	for _, p := range BpfM.Bpfspec.Programs {
+		switch p.Name {
+		case components.KimgLock:
+			if kimgrargs != "" {
+				p.Args = strings.Fields(kimgrargs)
+			}
+		case components.KmodLock:
+			if kmodrargs != "" {
+				p.Args = strings.Fields(kmodrargs)
+			}
+		case components.BpfRestrict:
+			if bpfrargs != "" {
+				p.Args = strings.Fields(bpfrargs)
+			}
+		}
+	}
+
+	c.BpfMeta = &BpfM
 
 	if m := viper.GetStringMapString(LogOpt); len(m) != 0 {
 		c.LogOpt = m
@@ -618,17 +727,6 @@ func sanitizeIntParam(paramName string, paramDefault int) int {
 	return intParam
 }
 
-func isBpfPermValid(perm string) bool {
-	switch perm {
-	case "allow":
-	case "none":
-	case "restrict":
-	case "deny":
-		return true
-	}
-	return false
-}
-
 // InitConfig reads in config file and ENV variables if set.
 func InitConfig(cmd *cobra.Command, programName, configName string) func() {
 	return func() {
@@ -646,6 +744,19 @@ func InitConfig(cmd *cobra.Command, programName, configName string) func() {
 		Config.BpfConfigDir = viper.GetString(BpfConfigDir)
 		viper.SetEnvPrefix("bpflock")
 
+		fmt.Printf("frist:\n%v\n----\n", viper.AllSettings())
+		if Config.BpfConfigDir == "" {
+			log.Fatalf("flag option '%s' is not set", Config.BpfConfigDir)
+		}
+		if _, err := os.Stat(Config.BpfConfigDir); os.IsNotExist(err) {
+			log.Fatalf("Non-existent configuration directory %s", Config.BpfConfigDir)
+		}
+
+		if err := ReadBpfDirConfig(Config.BpfConfigDir, &BpfM); err != nil {
+			log.WithError(err).Fatalf("unable to process bpf configurations: %s", Config.BpfConfigDir)
+		}
+
+		fmt.Printf("\n%v\n", viper.AllSettings())
 		if Config.ConfigDir != "" {
 			if _, err := os.Stat(Config.ConfigDir); os.IsNotExist(err) {
 				log.Fatalf("Non-existent configuration directory %s", Config.ConfigDir)
@@ -665,9 +776,11 @@ func InitConfig(cmd *cobra.Command, programName, configName string) func() {
 			}
 		}
 
+		fmt.Printf("\n%v\n", viper.AllSettings())
 		if Config.ConfigFile != "" {
 			viper.SetConfigFile(Config.ConfigFile)
 		} else {
+			viper.SetConfigType("yaml")
 			viper.SetConfigName(configName)          // name of config file (without extension)
 			viper.AddConfigPath("$HOME")             // adding home directory as first search path
 			viper.AddConfigPath("/etc/bpflock/")     // adding home directory as first search path
@@ -685,18 +798,10 @@ func InitConfig(cmd *cobra.Command, programName, configName string) func() {
 			log.WithError(err).Debug("Skipped reading configuration file")
 		}
 
-		if Config.BpfConfigDir != "" {
-			if _, err := os.Stat(Config.BpfConfigDir); os.IsNotExist(err) {
-				log.Fatalf("Non-existent configuration directory %s", Config.BpfConfigDir)
-			}
-
-			if bpfMeta, err := ReadBpfDirConfig(Config.BpfConfigDir); err != nil {
-				log.WithError(err).Fatalf("unable to process bpf configurations: %s", Config.BpfConfigDir)
-			} else {
-				if err := mergeBpfMetaConfig(bpfMeta); err != nil {
-					log.WithError(err).Fatal("Unable to merge bpf security configuration")
-				}
-			}
+		if err := mergeBpfMetaConfig(&BpfM); err != nil {
+			log.WithError(err).Fatal("Unable to merge bpf security configuration")
 		}
+
+		fmt.Printf("\n%v\n", viper.AllSettings())
 	}
 }
