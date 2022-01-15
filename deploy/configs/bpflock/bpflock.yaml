@@ -1,1 +1,31 @@
+# bpflock.yaml configuration
+
+# -- Enable debug logging
 debug: true
+
+# -- Remove bpf programs and security feature on exit
+remove-bpf-programs: true
+
+# -- Enable Ipv4 when listening on health port and other IP operations
+enable-ipv4: true
+
+# -- Enable Ipv6 when listening on health port and other IP operations
+enable-ipv6: true
+
+# -- Agent health port
+agent-health-port: 19876
+
+# -- Gops server TCP port
+gops-port: 19890
+
+# -- Enable/disable serving the pprof debugging API
+pprof: true
+
+# -- PProfPort is the port that the pprof listens on
+pprof-port: 6060
+
+# -- Directory path to store variable runtime environment
+lib-dir: /var/lib/bpflock
+
+# -- Directory path to store runtime state
+state-dir: /var/run/bpflock
