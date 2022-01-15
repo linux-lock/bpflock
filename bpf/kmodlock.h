@@ -30,15 +30,15 @@ enum dm_env {
 
 enum dm_reason {
         dmreason_allow                  = 1,    /* Allow */
-        dmreason_allow_exception,               /* Restrict but allow with exception */
-        dmreason_restrict,                      /* Restrict */
-        dmreason_deny,                          /* Deny */
+        dmreason_baseline_exception,            /* Baseline but allow with exception */
+        dmreason_baseline,                      /* Baseline */
+        dmreason_restricted,                    /* Restricted */
 };
 
 enum bpflock_dmodules_perm_flag {
         BPFLOCK_KM_ALLOW       = 1,
-        BPFLOCK_KM_RESTRICT,
-        BPFLOCK_KM_DENY,
+        BPFLOCK_KM_BASELINE,
+        BPFLOCK_KM_RESTRICTED,
 };
 
 struct bpflock_class_map dmodules_security_map = {

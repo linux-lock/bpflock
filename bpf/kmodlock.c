@@ -33,22 +33,21 @@ const char *argp_program_bug_address =
 const char argp_program_doc[] =
 "bpflock kmodlock - restrict kernel module load operations.\n"
 "\n"
-"USAGE: kmodlock [--help] [-p PERM] [-b CMD] [--rootfs] [--ro] [--ro-dev]\n"
+"USAGE: kmodlock [--help] [-p PROFILE] [-b CMD] [--rootfs] [--ro] [--ro-dev]\n"
 "\n"
 "EXAMPLES:\n"
-"  # kernel module operations are allowed.\n"
-"  kmodlock -p allow\n\n"
-"  # kernel module operations are allowed for tasks in initial pid namespace.\n"
-"  kmodlock\n"
-"  kmodlock -p restrict\n\n"
-"  # Restrict kernel module operations to tasks in initial pid namespace and\n"
+"  # Allow profile: kernel module operations are allowed.\n"
+"  kmodlock --profile=allow\n\n"
+"  # Baseline profile: kernel module operations are allowed for tasks in initial pid namespace.\n"
+"  kmodlock --profile=baseline\n\n"
+"  # Baseline profile: restrict kernel module operations to tasks in initial pid namespace and\n"
 "  # block loading of unsigned modules and other automatic module operations.\n"
-"  kmodlock -p restrict -b autoload_module,unsigned_module\n\n"
-"  # Deny loading kernel modules for all.\n"
-"  kmodlock -p deny\n";
+"  kmodlock --profile=baseline --block=autoload_module,unsigned_module\n\n"
+"  # Restricted profile: deny loading kernel modules for all.\n"
+"  kmodlock ---profile=restricted\n";
 
 static const struct argp_option opts[] = {
-        { "permission", 'p', "PERM", 0, "Permission to apply, one of the following: allow, restrict or deny. Default value is: restrict." },
+        { "profile", 'p', "PROFILE", 0, "Profile to apply, one of the following: allow, baseline or restricted. Default value is: allow." },
         { "block", 'b', "CMD", 0, "Block module operations, possible values: 'load_module, unload_module, autoload_module, unsigned_module, unsafe_module_parameters' " },
         { "rootfs", 'f', NULL, 0, "Allow module operations only if the modules originate from the root filesystem."},
         { "ro", 'r', NULL, 0, "Allow module operations only if the root filesystem is mounted read-only"},
@@ -72,7 +71,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
                 break;
         case 'p':
                 if (strlen(arg) + 1 > 64) {
-                        fprintf(stderr, "invaild -p|--permission argument: too long\n");
+                        fprintf(stderr, "invaild -p|--profile argument: too long\n");
                         argp_usage(state);
                 }
                 opt.perm = strndup(arg, strlen(arg));
@@ -102,14 +101,15 @@ static int setup_km_opt_map(struct kmodlock_bpf *skel, int *fd)
         }
 
         if (!opt.perm) {
-                opt.perm_int = BPFLOCK_KM_RESTRICT;
+                opt.perm_int = BPFLOCK_KM_ALLOW;
         } else {
-                if (strncmp(opt.perm, "deny", 4) == 0) {
-                        opt.perm_int = BPFLOCK_KM_DENY;
-                } else if (strncmp(opt.perm, "restrict", 8) == 0) {
-                        opt.perm_int = BPFLOCK_KM_RESTRICT;
+                if (strncmp(opt.perm, "restricted", 10) == 0) {
+                        opt.perm_int = BPFLOCK_KM_RESTRICTED;
+                } else if (strncmp(opt.perm, "baseline", 8) == 0) {
+                        opt.perm_int = BPFLOCK_KM_BASELINE;
                 } else if (strncmp(opt.perm, "allow", 5) == 0 ||
-                           strncmp(opt.perm, "none", 4) == 0) {
+                           strncmp(opt.perm, "none", 4) == 0 ||
+                           strncmp(opt.perm, "privileged", 10)) {
                         opt.perm_int = BPFLOCK_KM_ALLOW;
                 }
         }
@@ -306,14 +306,14 @@ int main(int argc, char **argv)
                 i++;
         }
 
-        if (opt.perm_int == BPFLOCK_KM_DENY) {
-                printf("%s: success: kernel module load operations are now disabled - delete pinned file '%s' to re-enable\n",
+        if (opt.perm_int == BPFLOCK_KM_RESTRICTED) {
+                printf("%s: success: profile: restricted - kernel module load operations are now disabled - delete pinned file '%s' to re-enable\n",
                         LOG_BPFLOCK, dmodules_security_map.pin_path);
-        } else if (opt.perm_int == BPFLOCK_KM_RESTRICT) {
-                printf("%s: success: kernel module load operations are now restricted only to initial pid namespace - delete pinned file '%s' to re-enable\n",
+        } else if (opt.perm_int == BPFLOCK_KM_BASELINE) {
+                printf("%s: success: profile: baseline - kernel module load operations are now restricted only to initial pid namespace - delete pinned file '%s' to re-enable\n",
                         LOG_BPFLOCK, dmodules_security_map.pin_path);
         } else {
-                printf("%s: kernel module load operations are allowed - delete pinned file '%s' to disable access logging\n",
+                printf("%s: success: profile : allow - kernel module load operations are allowed - delete pinned file '%s' to disable access logging\n",
                         LOG_BPFLOCK, dmodules_security_map.pin_path);
         }
 

@@ -148,11 +148,11 @@ static __always_inline int module_load_check(int blocked_op)
                 return 0;
 
 	blocked = *val;
-	if (blocked == BPFLOCK_KM_DENY)
+	if (blocked == BPFLOCK_KM_RESTRICTED)
 		return -EPERM;
 
         /* If restrict and not in init pid namespace deny access */
-        if (blocked == BPFLOCK_KM_RESTRICT && !is_init_pid_ns())
+        if (blocked == BPFLOCK_KM_BASELINE && !is_init_pid_ns())
 		return -EPERM;
 
         k = BPFLOCK_KM_OP;
