@@ -93,6 +93,12 @@ func NewDaemon(ctx context.Context, cancel context.CancelFunc) (*Daemon, error) 
 	d.configModifyQueue = eventqueue.NewEventQueueBuffered("config-modify-queue", ConfigModifyQueueSize)
 	d.configModifyQueue.Run()
 
+	if option.Config.RmBpfOnExit {
+		cleaner.cleanupFuncs.Add(func() {
+			bpf.BpfLsmDisable()
+		})
+	}
+
 	err = d.init()
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing daemon: %w", err)
