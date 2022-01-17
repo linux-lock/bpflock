@@ -1,6 +1,8 @@
 # bpflock - Lock Linux machines
 
-`bpflock` - eBPF driven security for locking and auditing Linux machines.
+![Bpflock Logo](docs/images/bpflock-logo-small.png)
+
+bpflock - eBPF driven security for locking and auditing Linux machines.
 
 Note: bpflock is currently in **experimental stage**, it may break, security semantics may change, some BPF programs will be updated to use [Cilium ebpf library](https://github.com/cilium/ebpf/).
 
@@ -16,11 +18,11 @@ Note: bpflock is currently in **experimental stage**, it may break, security sem
 
 ## 1. Introduction
 
-bpflock combines multiple bpf programs to strength Linux security. By restricting access to a various range of Linux features, bpflock is able to reduce the attack surface and block some well known attack techniques.
+bpflock uses [eBPF](https://ebpf.io/) to strength Linux security. By restricting access to a various range of Linux features, bpflock is able to reduce the attack surface and block some well known attack techniques.
 
 Only programs like container managers, systemd and other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) may be able to access those features, containers that run on their own namespace will be restricted. If bpflock bpf programs run under a `restricted` profile then all programs/containers will be denied access even privileged ones.
 
-bpflock protects Linux machines using a system wide approach taking advantage of [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html). The permission model will be augmented soon to include per cgroupv2 filtering.
+bpflock protects Linux machines using a system wide approach taking advantage of multiple security features including [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html). The permission model will be augmented soon to include per cgroupv2 filtering.
 
 Architecture and Security design notes:
 - bpflock is not a mandatory access control labeling solution, and it does not intent to replace [AppArmor](https://apparmor.net/), [SELinux](https://github.com/SELinuxProject/selinux), and other MAC solutions.
@@ -31,7 +33,7 @@ Architecture and Security design notes:
 
 ### 2.1 Security features
 
-bpflock bpf programs offer multiple security protections that can be classified as:
+bpflock offer multiple security protections that can be classified as:
 
 * [Hardware Addition Attacks](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md)
   - [USB Additions Protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
@@ -41,6 +43,11 @@ bpflock bpf programs offer multiple security protections that can be classified 
   - [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
   - [BPF Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection)
   - [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#4-execution-of-memory-elf-binaries)
+
+* System and Application tracing
+
+  - Trace privileged system operations
+  - Trace applications at runtime
 
 * [Filesystem Protections](https://github.com/linux-lock/bpflock/tree/main/docs/filesystem-protections.md)
 
@@ -55,18 +62,19 @@ bpflock bpf programs offer multiple security protections that can be classified 
 
 ### 2.2 Semantics
 
-bpflock tries to keep the security semantics simple without introducing complex policies. It uses a simple `profile` model to restrict access to some Linux features. bpflock supports three different profiles to broadly cover the security spectrum:
+bpflock keeps the security semantics simple. It support three declarative profiles models to broadly cover the security sepctrum, and restrict access to specific Linux features.
 
 * `profile`:
-  - `allow|none|privileged` : they are the same, they defined the least secure profile. In this profile access is allowed for all processes and it logged which is useful for security events.
-  - `baseline` : minimal restricive profile that allows access to only processes that are in the initial pid namespace.
+  - `allow|none|privileged` : they are the same, they define the least secure profile. In this profile access is logged and allowed for all processes, useful for security events.
+  - `baseline` : minimal restricive profile, only programs in the initial pid namespace are allowed access.
   - `restricted` : heavily restricted profile where access is denied for all processes.
 
 * `Allowed` or `blocked` operations/commands:
 
-  If running under a `baseline` profile, then a list of allowed or blocked commands can be specified where subsys maps to the corresponding bpf subsystem providing the protection.
-  - `--subsys-allow` : comma-separated list of allowed operations. Valid under `baseline` profile, this is useful for applications that are too specific and require privileged operations, it will reduce the use of the `allow | privileged` profile and offer a case-by-case definitions.
-  - `--subsys-block` : comma-separated list of blocked operations. Valid under `baseline` profile, it is useful to achieve a more `restricted` profile. The other way from `restricted` to `baseline` is not supported.
+  Under the `baseline` profile, a list of allowed or blocked commands can be specified that will be applied to the type of security protection.
+  - `--protection-allow` : comma-separated list of allowed operations. Valid under `baseline` profile, this is useful for applications that are too specific and require privileged operations, it will reduce the use of the `allow | privileged` profile and offer a case-by-case definitions.
+  - `--protection-block` : comma-separated list of blocked operations. Valid under `baseline` profile, useful to achieve a more `restricted` profile. The other way from `restricted` to `baseline` is not supported.
+
 
 For bpf security examples check [bpflock configuration examples](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/)
 

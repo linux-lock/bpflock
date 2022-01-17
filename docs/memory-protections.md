@@ -12,11 +12,16 @@
 
 ### 1.1 Introduction
 
-`kimglock` - kernel image lock implements restrictions to prevent both direct and indirect modification to a running kernel image, attempting to protect against unauthorized access. It combines the [kernel lockdown](https://man7.org/linux/man--profile=ages/man7/kernel_lockdown.7.html) features and other Linux Security Module features to protect against unauthorized modification of the kernel image.
+`kimglock` - kernel image lock implements restrictions to
+prevent both direct and indirect modification to a running
+kernel image, attempting to protect against unauthorized access.
+It combines the several Linux features including [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) and other LSMs to restrict
+unauthorized modification of the kernel image at runtime.
 
-**Note: this is still a moving target. Options are not stable**.
+**Note: restrictions and protections are still a moving target, since the Linux kernel offer multiple access entries to modify the running image, it is hard to track all of them, however they will be added as they are discovered.**
 
-By default `kimglock` will restrict access to the following features and allow it only from processes in the initial [pid namespace](https://man7.org/linux/man--profile=ages/man7/mount_namespaces.7.html):
+kimglock is able to completely block or allow access from the
+in the initial [pid namespace](https://man7.org/linux/man-pages/man7/pid_namespaces.7.html) only to the following:
 
   - Loading of unsigned modules.
   - Unsafe usage of module parameters.
@@ -41,15 +46,17 @@ By default `kimglock` will restrict access to the following features and allow i
 
 `kimglock` supports the following options:
 
- * profile:
-    - allow|none|privileged: kernel image access is allowed. Default profile.
-    - baseline: access is allowed only from processes that are in the initial pid namespace. This allows, init programs, systemd and container managers to properly setup the working environment and communicate with the correspondig hardware.
-    - restricted: direct and indirect access to a running kernel image is denied for all processes and containers.
+ * `profile`:
+    - `allow|none|privileged`: kernel image access is logged and allowed. Default profile.
+    - `baseline`: access is allowed only from processes that are in the initial pid namespace. This allows, container manager, systemd and others to properly setup the working environment and communicate with the correspondig hardware.
+    - `restricted`: direct and indirect access to a running kernel image is denied for all processes and containers.
  
  * Blocked access:
-   If in baseline profile, then the kernel image lock-down will be enforced for all processes that are not in the initial pid namespace, and [kernel features](https://github.com/linux-lock/bpflock/blob/main/docs/memory--profile=rotections.md#1-kernel-image-lock-down) to modify the running kernel are blocked. Special access exceptions can be set to allow some specific operations.
+
+   Under baseline profile, the kernel image lock-down will be enforced for all processes that are not in the initial pid namespace, and [kernel features](https://github.com/linux-lock/bpflock/blob/main/docs/memory--profile=rotections.md#1-kernel-image-lock-down) to modify the running kernel are blocked. Special access exceptions can be set to allow some specific operations.
 
  * Baseline profile access exceptions:
+   
    A coma-separated list of allowed features for the rest of all processes that are not in the initial pid namespace can be specified:
    - `unsigned_module` : allow unsigned module loading.
    - `unsafe_module_parameters` : allow module parameters that directly specify hardware
@@ -71,31 +78,31 @@ By default `kimglock` will restrict access to the following features and allow i
 
 * Allow profile: kernel image access is allowed.
   ```bash
-  sudo bpflock --kimglock-profile=none
-  sudo bpflock --kimglock-profile=allow
-  sudo bpflock --kimglock-profile=privileged
+  bpflock --kimglock-profile=none
+  bpflock --kimglock-profile=allow
+  bpflock --kimglock-profile=privileged
   ```
 
 * Baseline profile: access is allowed only for processes in the initial pid namespace.
   ```bash
-  sudo bpflock --kimglock-profile=baseline
+  bpflock --kimglock-profile=baseline
   ```
 
 * Baseline profile: access is allowed only for processes in the initial pid namespace. Access from all other processes is denied with exceptions to access debugfs, raw I/O port and loading of unsigned modules operations.
   ```bash
-  sudo bpflock --kimglock-profile=baseline \
+  bpflock --kimglock-profile=baseline \
     --kimglock-allow=debugfs,ioport,unsigned_module
   ``` 
 
 * Baseline profile: access is allowed only for processes in the initial pid namespace. Access from all other processes is denied with an exception to allow only the bpf writes to user RAM operation.
 
   ```bash
-  sudo bpflock --kimglock-profile=baseline --kimglock-allow=bpf_write
+  bpflock --kimglock-profile=baseline --kimglock-allow=bpf_write
   ``` 
 
 * Restricted profile: direct and indirect access to a running kernel image is denied for all processes.
   ```bash
-  sudo bpflock --kimglock-profile=restricted
+  bpflock --kimglock-profile=restricted
   ```
 
 ### 1.3 Disable kimglock
@@ -123,7 +130,7 @@ If `/sys` is read-only and can not be remounted, then `kimglock` is pinned and c
 
 `kmodlock` supports the following options:
 
- * profile:
+ * `profile`:
    - `allow|none|privileged`: load module operations are allowed. Default value.
    - `baseline`: load and unload modules are allowed only from processes that are in the initial pid namespace. This allows init, systemd or container managers to properly set up the system.
    - `restricted`: all operations of loading modules are denied for all processes on the system.
@@ -147,29 +154,29 @@ Examples:
 
 * Allow profile: loading kernel modules is allowed.
   ```bash
-  sudo bpflock --kmodlock-profile=allow
-  sudo bpflock --kmodlock-profile=none
-  sudo bpflock --kmodlock-profile=privileged
+  bpflock --kmodlock-profile=allow
+  bpflock --kmodlock-profile=none
+  bpflock --kmodlock-profile=privileged
   ```
 
 * Baseline profile: module operations are allowed only from processes in the initial pid namespace.
   ```bash
-  sudo bpflock --kmodlock-profile=baseline
+  bpflock --kmodlock-profile=baseline
   ```
 
 * Baseline profile: module operations are allowed only from processes in the initial pid namespace, but loading unsigned modules is blocked for all.
   ```bash
-  sudo bpflock --kmodlock-profile=baseline --kmodlock-block=unsigned_module
+  bpflock --kmodlock-profile=baseline --kmodlock-block=unsigned_module
   ```
 
 * Baseline profile: module operations are allowed only from processes in the initial pid namespace, but automatic module loading is blocked for all.
   ```bash
-  sudo bpflock --kmodlock-profile=baseline --kmodlock-block=autoload_module
+  bpflock --kmodlock-profile=baseline --kmodlock-block=autoload_module
   ```
 
 * Restriced profile: load modules denied or all processes.
   ```bash
-  sudo bpflock --kmodlock-profile=restricted
+  bpflock --kmodlock-profile=restricted
   ```
 
 ### 2.3 Disable modules protections
@@ -183,7 +190,7 @@ If `/sys` is read-only and can not be remounted, then bpflock kmodlock is pinned
 
 ### 3.1 Introduction
 
-`bpfrestrict` - implements access restrictions on [bpf syscall](https://man7.org/linux/man--profile=ages/man2/bpf.2.html) by
+`bpfrestrict` - implements access restrictions on [bpf syscall](https://man7.org/linux/man-pages/man2/bpf.2.html) by
 restricting or blocking access to:
 
   - Loading BPF programs.
@@ -197,7 +204,7 @@ Make sure to execute this program last during boot and after all necessary bpf p
 
 It supports following options:
 
- * profile:
+ * `profile`:
     - `allow|none|privileged`: bpf is allowed for all processes on the system.
     - `baseline`: bpf is allowed only from processes that are in the initial pid namespace. This allows container managers, systemd, init, etc to properly set up bpf.
     - `restricted`: bpf syscall and all its commands are denied for all processes on the system.
@@ -215,29 +222,29 @@ Examples:
 
 * Allow profile: BPF access is allowed
   ```bash
-  sudo bpflock --bpfrestrict-profile=none
-  sudo bpflock --bpfrestrict-profile=allow
-  sudo bpflock --bpfrestrict-profile=privileged
+  bpflock --bpfrestrict-profile=none
+  bpflock --bpfrestrict-profile=allow
+  bpflock --bpfrestrict-profile=privileged
   ```
 
 * Baseline profile: BPF access is allowed from processes in the initial pid namespace.
   ```bash
-  sudo bpflock --bpfrestrict-profile=baseline
+  bpflock --bpfrestrict-profile=baseline
   ```
 
 * Baseline profile: BPF access is allowed only from processes in the initial pid namespace, but bpf_probe_write_user() helper to write user RAM is blocked for all.
   ```bash
-  sudo bpflock --bpfrestrict-profile=baseline --bpfrestrict-block=bpf_write
+  bpflock --bpfrestrict-profile=baseline --bpfrestrict-block=bpf_write
   ```
 
 * Baseline profile: BPF access is allowed only from processes in the initial pid namespace, but the `btf_load` loading BTF metadata into the kernel is blocked.
   ```bash
-  sudo bpflock --bpfrestrict-profile=baseline --bpfrestrict-block=btf_load
+  bpflock --bpfrestrict-profile=baseline --bpfrestrict-block=btf_load
   ```
 
 * Restricted profile: deny BPF for all processes.
   ```bash
-  sudo bpflock --bpfrestrict-profile=restricted
+  bpflock --bpfrestrict-profile=restricted
   ```
 
 ### 3.3 Disable bpfrestrict
