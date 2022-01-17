@@ -101,16 +101,34 @@ bpflock needs the following:
 
 ### 3.2 Docker deployment
 
-**Note: this is used for current dev/testing, it will be changed soon so configurations are shipped inside image.**
-
-First fetch one of the following bpf security configuration: [bpf
-configurations](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/bpf.d) and save it into current
-directory.
-
-Then run container using:
+To run using the default `allow` or `privileged` profile:
+```bash
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+  -v /sys/kernel/:/sys/kernel/ -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
 ```
-docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged -v /sys/kernel/security:/sys/kernel/security -v /sys/fs/bpf:/sys/fs/bpf -v $(pwd)/deny.yaml:/etc/bpflock/bpf.d/deny.yaml linuxlock/bpflock
+
+To apply [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down) run with environment variable `BPFLOCK_KIMGLOCK_PROFILE=baseline` or `BPFLOCK_KIMGLOCK_PROFILE=restricted`:
+```bash
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+  -e "BPFLOCK_KIMGLOCK_PROFILE=restricted" \
+  -v /sys/kernel/:/sys/kernel/ -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
 ```
+
+To apply [bpf restriction](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection) run with environment variable `BPFLOCK_BPFRESTRICT_PROFILE=baseline` or `BPFLOCK_BPFRESTRICT_PROFILE=restricted`:
+```bash
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+  -e "BPFLOCK_BPFRESTRICT_PROFILE=restricted" \
+  -v /sys/kernel/:/sys/kernel/ -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+```
+
+To apply [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
+run with environment variable `BPFLOCK_KMODLOCK_PROFILE=baseline` or `BPFLOCK_KMODLOCK_PROFILE=restricted`:
+```bash
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+  -e "BPFLOCK_KMODLOCK_PROFILE=restricted" \
+  -v /sys/kernel/:/sys/kernel/ -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+```
+
 
 ## 4. Documentation
 
