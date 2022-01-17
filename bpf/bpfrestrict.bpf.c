@@ -29,6 +29,11 @@ struct {
         __type(value, struct bl_stat);
 } bpfrestrict_ns_map SEC(".maps");
 
+struct {
+        __uint(type, BPF_MAP_TYPE_RINGBUF);
+        __uint(max_entries, 1 << 24);
+} bpflock_events SEC(".maps");
+
 int pinned_bpf = 0;
 
 static __always_inline bool is_init_pid_ns(void)
@@ -67,6 +72,24 @@ static __always_inline bool is_init_mnt_ns(void)
         return ino == (unsigned long)PROC_DYNAMIC_FIRST && ino == st->st_ino;
 }
 
+static __always_inline int report(const char *op, const int ret, int reason)
+{
+        uint64_t id;
+        static struct event info;
+
+        id = bpf_get_current_pid_tgid();
+        info.pid = id >> 32;
+
+        bpf_get_current_comm(&info.comm, sizeof(info.comm));
+
+        bpf_printk("bpflock bpf=bpfrestrict pid=%lu comm=%s event=%s\n",
+                   info.pid, info.comm, op);
+        bpf_printk("bpflock bpf=bpfrestrict pid=%lu event=%s status=%s\n",
+                   info.pid, op, get_reason_str(ret, reason));
+
+        return ret;
+}
+
 SEC("lsm/bpf")
 int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
              unsigned int size, int ret)
@@ -84,11 +107,14 @@ int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
 
                 blocked = *val;
                 if (blocked == BPFLOCK_BPF_RESTRICTED)
-                        return -EPERM;
+                        return report("bpf()", -EPERM, reason_restricted);
 
-                /* If restrict and not in init pid namespace deny access */
+                if (blocked == BPFLOCK_BPF_ALLOW)
+                        return report("bpf()", 0, reason_allow);
+
+                /* If baseline and not in init pid namespace deny access */
                 if (blocked == BPFLOCK_BPF_BASELINE && !is_init_pid_ns())
-                        return -EPERM;
+                        return report("bpf() from non init pid namespace", -EPERM, reason_baseline);
 
                 k = BPFLOCK_BPF_OP;
 
@@ -99,7 +125,7 @@ int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
                  */
                 val = bpf_map_lookup_elem(&bpfrestrict_map, &k);
                 if (!val)
-                        return 0;
+                        return report("bpf()", 0, reason_baseline_allowed);
 
                 blocked = *val;
 
@@ -119,7 +145,9 @@ int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
                 }
 
                 if (op_blocked)
-                        return -EPERM;
+                        return report("bpf() blocked cmd", -EPERM, reason_baseline_restricted);
+
+                return report("bpf() allowed cmd", 0, reason_baseline);
 
         } else if (cmd == BPF_OBJ_PIN) {
                 pinned_bpf += 1;
@@ -131,7 +159,7 @@ int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
 SEC("lsm/locked_down")
 int BPF_PROG(bpfrestrict_bpf_write, enum lockdown_reason what, int ret)
 {
-        uint32_t *val, blocked = 0;
+        uint32_t *val, blocked = 0, reason = 0;
         uint32_t k = BPFLOCK_BPF_PERM;
 
         if (ret != 0 )
@@ -146,24 +174,27 @@ int BPF_PROG(bpfrestrict_bpf_write, enum lockdown_reason what, int ret)
 
         blocked = *val;
         if (blocked == BPFLOCK_BPF_RESTRICTED)
-                return -EPERM;
+                return report("bpf() write user", -EPERM, reason_restricted);
+
+        if (blocked == BPFLOCK_BPF_ALLOW)
+                return report("bpf() write user", 0, reason_allow);
 
         /* If restrict and not in init pid namespace, then deny access */
         if (blocked == BPFLOCK_BPF_BASELINE && !is_init_pid_ns())
-                return -EPERM;
+                return report("bpf() write user from non init pid namespace", -EPERM, reason_baseline);
 
         k = BPFLOCK_BPF_OP;
 
         /* If not block access is not found then allow */
         val = bpf_map_lookup_elem(&bpfrestrict_map, &k);
         if (!val)
-                return 0;
+                return report("bpf() write user", 0, reason_baseline);
 
         blocked = *val;
         if (blocked & BPFLOCK_BPF_WRITE)
-                return -EPERM;
+                return report("bpf() write user", -EPERM, reason_baseline_restricted);
 
-        return 0;
+        return report("bpf() write user", 0, reason_baseline_allowed);
 }
 
 static const char _license[] SEC("license") = "GPL";

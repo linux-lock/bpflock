@@ -265,7 +265,7 @@ int main(int argc, char **argv)
         if (err) {
                 libbpf_strerror(err, buf, sizeof(buf));
                 fprintf(stderr, "%s: error: failed to pin bpf obj into '%s'\n",
-			LOG_BPFLOCK, buf);
+                        LOG_BPFLOCK, buf);
                 goto cleanup;
         }
 
