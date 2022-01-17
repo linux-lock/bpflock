@@ -6,12 +6,12 @@
 
 /*
    To test automatic module loading:
-	1. lsmod | grep ipip -
-		ipip module is not loaded.
-	2. sudo ip tunnel add mytun mode ipip remote 10.0.2.100 local 10.0.2.15 ttl 255
-		add tunnel "tunl0" failed: No such device
-	3. lsmod | grep ipip -
-		ipip module was not loaded.
+        1. lsmod | grep ipip -
+                ipip module is not loaded.
+        2. sudo ip tunnel add mytun mode ipip remote 10.0.2.100 local 10.0.2.15 ttl 255
+                add tunnel "tunl0" failed: No such device
+        3. lsmod | grep ipip -
+                ipip module was not loaded.
 */
 
 #include <vmlinux.h>
@@ -77,6 +77,24 @@ static __always_inline bool is_init_mnt_ns(void)
          * on proc.
          */
         return ino == (unsigned long)PROC_DYNAMIC_FIRST && ino == st->st_ino;
+}
+
+static __always_inline int report(const char *op, const int ret, int reason)
+{
+        uint64_t id;
+        static struct event info;
+
+        id = bpf_get_current_pid_tgid();
+        info.pid = id >> 32;
+
+        bpf_get_current_comm(&info.comm, sizeof(info.comm));
+
+        bpf_printk("bpflock bpf=kmodlock pid=%lu comm=%s event=%s\n",
+                   info.pid, info.comm, op);
+        bpf_printk("bpflock bpf=kmodlock pid=%lu event=%s status=%s\n",
+                   info.pid, op, get_reason_str(ret, reason));
+
+        return ret;
 }
 
 static __always_inline struct sb_elem *lookup_sb_elem(void)
@@ -147,24 +165,27 @@ static __always_inline int module_load_check(int blocked_op)
         if (!val)
                 return 0;
 
-	blocked = *val;
-	if (blocked == BPFLOCK_KM_RESTRICTED)
-		return -EPERM;
+        blocked = *val;
+        if (blocked == BPFLOCK_KM_RESTRICTED)
+                return report("module load", -EPERM, reason_restricted);
+
+        if (blocked == BPFLOCK_KM_ALLOW)
+                return report("module load", 0, reason_allow);
 
         /* If restrict and not in init pid namespace deny access */
         if (blocked == BPFLOCK_KM_BASELINE && !is_init_pid_ns())
-		return -EPERM;
+                return report("module load from non init pid namespace", -EPERM, reason_baseline);
 
         k = BPFLOCK_KM_OP;
         val = bpf_map_lookup_elem(&disablemods_map, &k);
         if (!val)
-                return 0;
+                return report("module load", 0, reason_baseline_allowed);
 
-	blocked = *val;
-	if (blocked & blocked_op)
-		return -EPERM;
+        blocked = *val;
+        if (blocked & blocked_op)
+                return report("module load", -EPERM, reason_baseline_restricted);
 
-        return 0;
+        return report("module load", 0, reason_baseline);
 }
 
 SEC("lsm/sb_free_security")
@@ -193,21 +214,17 @@ int BPF_PROG(km_locked_down, enum lockdown_reason what, int ret)
 {
         uint32_t blocked_op = 0;
 
-        if (ret != 0 )
+        if (ret != 0)
                 return ret;
 
         if (what == LOCKDOWN_MODULE_SIGNATURE)
-		blocked_op = BPFLOCK_KM_UNSIGNED;
-	else if (what == LOCKDOWN_MODULE_PARAMETERS)
-		blocked_op = BPFLOCK_KM_UNSAFEMOD;
-	else
+                blocked_op = BPFLOCK_KM_UNSIGNED;
+        else if (what == LOCKDOWN_MODULE_PARAMETERS)
+                blocked_op = BPFLOCK_KM_UNSAFEMOD;
+        else
                 return 0;
 
-        ret = module_load_check(blocked_op);
-        if (ret < 0)
-                return ret;
-
-        return 0;
+        return module_load_check(blocked_op);
 }
 
 SEC("lsm/kernel_module_request")
@@ -216,11 +233,7 @@ int BPF_PROG(km_autoload, char *kmod_name, int ret)
         if (ret != 0)
                 return ret;
 
-        ret = module_load_check(BPFLOCK_KM_AUTOLOAD);
-        if (ret < 0)
-                return ret;
-
-	return 0;
+        return module_load_check(BPFLOCK_KM_AUTOLOAD);
 }
 
 static int kmod_from_file(struct file *file,
@@ -237,29 +250,23 @@ static int kmod_from_file(struct file *file,
         if (ret < 0)
                 return ret;
 
+        /*
         ret = module_rootfs_check(file, id, contents);
         if (ret < 0)
                 return ret;
+        */
 
         return 0;
 }
 
 SEC("lsm/kernel_read_file")
 int BPF_PROG(km_read_file, struct file *file,
-	     enum kernel_read_file_id id, bool contents, int ret)
+             enum kernel_read_file_id id, bool contents, int ret)
 {
         if (ret != 0)
                 return ret;
 
-	switch (id) {
-	case READING_MODULE:
-		ret = kmod_from_file(file, READING_MODULE, contents);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
+        return kmod_from_file(file, id, contents);
 }
 
 SEC("lsm/kernel_load_data")
@@ -269,15 +276,7 @@ int BPF_PROG(km_load_data, enum kernel_read_file_id id,
         if (ret != 0)
                 return ret;
 
-	switch (id) {
-	case LOADING_MODULE:
-		ret = kmod_from_file(NULL, (enum kernel_read_file_id) LOADING_MODULE, contents);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
+        return kmod_from_file(NULL, (enum kernel_read_file_id) id, contents);
 }
 
 static const char _license[] SEC("license") = "GPL";

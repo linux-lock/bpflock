@@ -28,13 +28,6 @@ enum dm_env {
         BPFLOCK_KM_SB,
 };
 
-enum dm_reason {
-        dmreason_allow                  = 1,    /* Allow */
-        dmreason_baseline_exception,            /* Baseline but allow with exception */
-        dmreason_baseline,                      /* Baseline */
-        dmreason_restricted,                    /* Restricted */
-};
-
 enum bpflock_dmodules_perm_flag {
         BPFLOCK_KM_ALLOW       = 1,
         BPFLOCK_KM_BASELINE,
