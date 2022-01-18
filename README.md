@@ -20,12 +20,18 @@ Note: bpflock is currently in **experimental stage**, it may break, security sem
 
 bpflock uses [eBPF](https://ebpf.io/) to strength Linux security. By restricting access to a various range of Linux features, bpflock is able to reduce the attack surface and block some well known attack techniques.
 
-Only programs like container managers, systemd and other containers/programs that run in the host [pid namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) may be able to access those features, containers that run on their own namespace will be restricted. If bpflock bpf programs run under a `restricted` profile then all programs/containers will be denied access even privileged ones.
+Only programs like container managers, systemd and other containers/programs that run in the host [pid
+namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) may be able to access those features, containers
+that run on their own namespace will be restricted. If bpflock bpf programs run under a `restricted` profile then all
+programs/containers will be denied access even privileged ones. The filtering model will be augmented soon to include
+per cgroupv2 filetring.
 
-bpflock protects Linux machines using a system wide approach taking advantage of multiple security features including [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html). The permission model will be augmented soon to include per cgroupv2 filtering.
+bpflock protects Linux machines by taking advantage of multiple security features including [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html).
 
 Architecture and Security design notes:
-- bpflock is not a mandatory access control labeling solution, and it does not intent to replace [AppArmor](https://apparmor.net/), [SELinux](https://github.com/SELinuxProject/selinux), and other MAC solutions.
+- bpflock is not a mandatory access control labeling solution, and it does not intent to replace
+[AppArmor](https://apparmor.net/), [SELinux](https://github.com/SELinuxProject/selinux), and other MAC solutions.
+bpflock uses a simple declarative security profile.
 - bpflock offers multiple small bpf programs that can be reused in multiple contexts from Cloud Native deployments to Linux IoT devices.
 - bpflock is able to restrict root to access certain Linux features, however it does not protect against evil root users that can disable it.
 
@@ -101,34 +107,74 @@ bpflock needs the following:
 
 ### 3.2 Docker deployment
 
-To run using the default `allow` or `privileged` profile:
+To run using the default `allow` or `privileged` profile (the least secure profile):
 ```bash
-docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
-  -v /sys/kernel/:/sys/kernel/ -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+docker run --name bpflock -it --rm --cgroupns=host \
+  --pid=host --privileged \
+  -v /sys/kernel/:/sys/kernel/ \
+  -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
 ```
 
-To apply [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down) run with environment variable `BPFLOCK_KIMGLOCK_PROFILE=baseline` or `BPFLOCK_KIMGLOCK_PROFILE=restricted`:
+Then in another terminal read from the tracing pipe to see logs:
 ```bash
-docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
-  -e "BPFLOCK_KIMGLOCK_PROFILE=restricted" \
-  -v /sys/kernel/:/sys/kernel/ -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+sudo cat /sys/kernel/debug/tracing/trace_pipe
 ```
+Note: this is a temporary testing solution, bpflock will soon display all logs directly.
 
-To apply [bpf restriction](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection) run with environment variable `BPFLOCK_BPFRESTRICT_PROFILE=baseline` or `BPFLOCK_BPFRESTRICT_PROFILE=restricted`:
-```bash
-docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
-  -e "BPFLOCK_BPFRESTRICT_PROFILE=restricted" \
-  -v /sys/kernel/:/sys/kernel/ -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
-```
+#### Kernel Modules Protection
 
 To apply [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
 run with environment variable `BPFLOCK_KMODLOCK_PROFILE=baseline` or `BPFLOCK_KMODLOCK_PROFILE=restricted`:
 ```bash
 docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
-  -e "BPFLOCK_KMODLOCK_PROFILE=restricted" \
-  -v /sys/kernel/:/sys/kernel/ -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+  -e "BPFLOCK_KMODLOCK_PROFILE=baseline" \
+  -v /sys/kernel/:/sys/kernel/ \
+  -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
 ```
 
+Example:
+```bash
+$ sudo unshare -f -p bash
+# modprobe xfs
+modprobe: ERROR: could not insert 'xfs': Operation not permitted
+```
+
+```
+modprobe-399022  [002] d...1 427205.192790: bpf_trace_printk: bpflock bpf=kmodlock pid=399022 event=module load from non init pid namespace status=denied (baseline)
+```
+
+#### Kernel Image Lock-down
+
+To apply [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down) run with environment variable `BPFLOCK_KIMGLOCK_PROFILE=baseline` or `BPFLOCK_KIMGLOCK_PROFILE=restricted`:
+```bash
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+  -e "BPFLOCK_KIMGLOCK_PROFILE=baseline" \
+  -v /sys/kernel/:/sys/kernel/ \
+  -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+```
+
+#### BPF Protection
+
+To apply [bpf restriction](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection) run with environment variable `BPFLOCK_BPFRESTRICT_PROFILE=baseline` or `BPFLOCK_BPFRESTRICT_PROFILE=restricted`:
+```bash
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+  -e "BPFLOCK_BPFRESTRICT_PROFILE=baseline" \
+  -v /sys/kernel/:/sys/kernel/ \
+  -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+```
+
+Example:
+```bash
+$ sudo unshare -f -p bash
+# bpftool prog
+Error: can't get next program: Operation not permitted
+```
+
+```
+bpftool-399330  [002] d...1 427673.628475: bpf_trace_printk: bpflock bpf=bpfrestrict pid=399330 comm=bpftool event=bpf() from non init pid namespace
+
+bpftool-399330  [002] d...1 427673.628522: bpf_trace_printk: bpflock bpf=bpfrestrict pid=399330 event=bpf() from non init pid namespace status=denied (baseline)
+```
 
 ## 4. Documentation
 
