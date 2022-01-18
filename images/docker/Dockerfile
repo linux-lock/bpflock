@@ -54,7 +54,7 @@ ARG TARGETARCH
 RUN mkdir -p /usr/lib/bpflock/ && mkdir -p /etc/bpflock/bpflock.d && mkdir -p /etc/bpflock/bpf.d
 
 # Copy configuration
-COPY --from=bpflock-builder /go/src/github.com/linux-lock/bpflock/deploy/configs/bpflock/* /etc/bpflock/
+COPY --from=bpflock-builder /go/src/github.com/linux-lock/bpflock/deploy/configs/bpflock /etc/bpflock
 
 # Install generated programs
 COPY --from=bpflock-builder /go/src/github.com/linux-lock/bpflock/build/dist/bin/bpflock /usr/lib/bpflock/
