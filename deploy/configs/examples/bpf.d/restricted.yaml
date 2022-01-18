@@ -4,12 +4,12 @@ bpfmetadata:
   name: bpflock
 bpfspec:
   programs:
-#    - name: kimglock
-#      description: "Restrict both direct and indirect modification to a running kernel image"
-#      doc: https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#1-kernel-image-lock-down
-#      command: kimglock
-#      args:
-#        - --profile=restricted
+    - name: kimglock
+      description: "Restrict both direct and indirect modification to a running kernel image"
+      doc: https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#1-kernel-image-lock-down
+      command: kimglock
+      args:
+        - --profile=restricted
     - name: kmodlock
       description: "Restrict kernel module operations on modular kernels"
       doc: https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#2-kernel-modules-protections
