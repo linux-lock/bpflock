@@ -72,7 +72,9 @@ func BpfLsmEnable() error {
 		}
 		_, err = exec.WithTimeout(defaults.ShortExecTimeout, launcher, p.Args...).CombinedOutput(log, true)
 		if err != nil {
-			return fmt.Errorf("run bpf program '%s' with '%q' failed: %v", p.Name, launcher, err)
+			// Let's not fail execution but report it
+			log.WithError(err).Warnf("run bpf program '%s' with '%q' failed: %v", p.Name, launcher, err)
+			continue
 		}
 
 		log.WithFields(logrus.Fields{
@@ -83,7 +85,7 @@ func BpfLsmEnable() error {
 	}
 
 	if i == 0 {
-		return fmt.Errorf("unable to start all bpf programs")
+		return fmt.Errorf("unable to start bpf programs: all failed")
 	}
 
 	return nil
