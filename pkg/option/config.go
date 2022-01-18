@@ -310,18 +310,21 @@ func (c *DaemonConfig) IPv6Enabled() bool {
 	return c.EnableIPv6
 }
 
-func isBpfProfileValid(profile string) bool {
+func isBpfProfileValid(profile string) error {
+	if profile == "" {
+		return fmt.Errorf("profile not set")
+	}
 	switch profile {
 	case "allow", "none", "privileged", "baseline", "restricted":
-		return true
+		return nil
 	}
-	return false
+	return fmt.Errorf("profile '%s' not supported", profile)
 }
 
 func (c *DaemonConfig) areBpfProgramsOk() error {
 	bpfMeta := c.BpfMeta
 	if bpfMeta.Bpfspec == nil || len(bpfMeta.Bpfspec.Programs) == 0 {
-		return fmt.Errorf("spec and bpf programs not valid")
+		return fmt.Errorf("unable to find spec and bpf programs configuration")
 	}
 
 	spec := bpfMeta.Bpfspec
@@ -335,8 +338,9 @@ func (c *DaemonConfig) areBpfProgramsOk() error {
 			}
 		}
 
-		if isBpfProfileValid(profile) == false {
-			return fmt.Errorf("BpfMeta invalid program '%s' profile is not supported", p.Name)
+		err := isBpfProfileValid(profile)
+		if err != nil {
+			return fmt.Errorf("BpfMeta invalid program '%s': %v", p.Name, err)
 		}
 	}
 
@@ -625,7 +629,7 @@ func (c *DaemonConfig) Populate() {
 	}
 
 	kmodrargs := ""
-	value = viper.GetString(KimgLockProfile)
+	value = viper.GetString(KmodLockProfile)
 	if value != "" {
 		kmodrargs = fmt.Sprintf("--profile=%s", value)
 		value = viper.GetString(KmodLockBlock)
