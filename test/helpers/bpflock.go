@@ -23,10 +23,9 @@ const (
 	BpflockIntegrationImage = "linuxlock/bpflock-integration:latest"
 
 	// Will automatically look for the configuration in /etc/bpflock/
-	// then inside /usr/lib/bpflock/
-	BpflockProfileDeny     = "--config=docker-deny.yaml"
-	BpflockProfileRestrict = "--config=docker-restrict.yaml"
-	BpflockProfileAllow    = "--config=docker-allow.yaml"
+	BpflockProfileRestricted = "restricted.yaml"
+	BpflockProfileBaseline   = "baseline.yaml"
+	BpflockProfileAllow      = "allow.yaml"
 )
 
 // Runs a bpflock command and returns the resultant cmdRes.
