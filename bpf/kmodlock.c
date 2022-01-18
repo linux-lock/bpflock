@@ -14,9 +14,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "bpflock_security_class.h"
+#include "bpflock_shared_defs.h"
 #include "trace_helpers.h"
 #include "bpflock_utils.h"
-#include "bpflock_security_class.h"
 #include "kmodlock.h"
 #include "kmodlock.skel.h"
 
@@ -101,16 +102,16 @@ static int setup_km_opt_map(struct kmodlock_bpf *skel, int *fd)
         }
 
         if (!opt.perm) {
-                opt.perm_int = BPFLOCK_KM_ALLOW;
+                opt.perm_int = BPFLOCK_P_ALLOW;
         } else {
                 if (strncmp(opt.perm, "restricted", 10) == 0) {
-                        opt.perm_int = BPFLOCK_KM_RESTRICTED;
+                        opt.perm_int = BPFLOCK_P_RESTRICTED;
                 } else if (strncmp(opt.perm, "baseline", 8) == 0) {
-                        opt.perm_int = BPFLOCK_KM_BASELINE;
+                        opt.perm_int = BPFLOCK_P_BASELINE;
                 } else if (strncmp(opt.perm, "allow", 5) == 0 ||
                            strncmp(opt.perm, "none", 4) == 0 ||
                            strncmp(opt.perm, "privileged", 10)) {
-                        opt.perm_int = BPFLOCK_KM_ALLOW;
+                        opt.perm_int = BPFLOCK_P_ALLOW;
                 }
         }
 
@@ -306,10 +307,10 @@ int main(int argc, char **argv)
                 i++;
         }
 
-        if (opt.perm_int == BPFLOCK_KM_RESTRICTED) {
+        if (opt.perm_int == BPFLOCK_P_RESTRICTED) {
                 printf("%s: success: profile: restricted - kernel module load operations are now disabled - delete pinned file '%s' to re-enable\n",
                         LOG_BPFLOCK, dmodules_security_map.pin_path);
-        } else if (opt.perm_int == BPFLOCK_KM_BASELINE) {
+        } else if (opt.perm_int == BPFLOCK_P_BASELINE) {
                 printf("%s: success: profile: baseline - kernel module load operations are now restricted only to initial pid namespace - delete pinned file '%s' to re-enable\n",
                         LOG_BPFLOCK, dmodules_security_map.pin_path);
         } else {

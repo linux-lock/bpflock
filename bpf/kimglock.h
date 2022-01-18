@@ -17,12 +17,6 @@
 #define BPFLOCK_KI_PERM        1
 #define BPFLOCK_KI_ALLOW_OP    256
 
-enum bpflock_bpf_perm_flag {
-        BPFLOCK_KI_ALLOW       = 1,
-        BPFLOCK_KI_BASELINE,
-        BPFLOCK_KI_RESTRICTED,
-};
-
 #define FOREACH_KIMGREASON(KIMGREASON) \
         KIMGREASON(LOCK_KIMG_NONE)      \
         KIMGREASON(LOCK_KIMG_MODULE_SIGNATURE)  \
@@ -57,12 +51,7 @@ enum kimg_enum {
         FOREACH_KIMGREASON(GENERATE_ENUM)
 };
 
-enum extra_kimg_enum {
-        /*
-          We support only to BPF_WRITE_USER for backward compatibility,
-          LOCK_KIMG_KCORE protects kcore which is read-only anyway.
-        */
-
+enum kimg_enum_extra {
         LOCK_KIMG_BTF_LOAD = 512,
 };
 

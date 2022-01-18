@@ -20,6 +20,7 @@
 #include <bpf/bpf_core_read.h>
 #include <errno.h>
 #include "bpflock_bpf_defs.h"
+#include "bpflock_shared_defs.h"
 #include "kmodlock.h"
 
 struct {
@@ -166,14 +167,14 @@ static __always_inline int module_load_check(int blocked_op)
                 return 0;
 
         blocked = *val;
-        if (blocked == BPFLOCK_KM_RESTRICTED)
+        if (blocked == BPFLOCK_P_RESTRICTED)
                 return report("module load", -EPERM, reason_restricted);
 
-        if (blocked == BPFLOCK_KM_ALLOW)
+        if (blocked == BPFLOCK_P_ALLOW)
                 return report("module load", 0, reason_allow);
 
         /* If restrict and not in init pid namespace deny access */
-        if (blocked == BPFLOCK_KM_BASELINE && !is_init_pid_ns())
+        if (blocked == BPFLOCK_P_BASELINE && !is_init_pid_ns())
                 return report("module load from non init pid namespace", -EPERM, reason_baseline);
 
         k = BPFLOCK_KM_OP;

@@ -21,12 +21,6 @@
 
 #define BPFRESTRICT_NS_MAP_PIN      "/sys/fs/bpf/bpflock/bpfrestrict_ns_map"
 
-enum bpflock_bpf_perm_flag {
-        BPFLOCK_BPF_ALLOW       = 1,
-        BPFLOCK_BPF_BASELINE,
-        BPFLOCK_BPF_RESTRICTED,
-};
-
 struct bpflock_class_map bpf_security_map = {
         "bpf",
         "/sys/fs/bpf/bpflock/bpfrestrict",

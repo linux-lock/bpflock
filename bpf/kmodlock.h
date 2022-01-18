@@ -28,12 +28,6 @@ enum dm_env {
         BPFLOCK_KM_SB,
 };
 
-enum bpflock_dmodules_perm_flag {
-        BPFLOCK_KM_ALLOW       = 1,
-        BPFLOCK_KM_BASELINE,
-        BPFLOCK_KM_RESTRICTED,
-};
-
 struct bpflock_class_map dmodules_security_map = {
         "kmodlock",
         "/sys/fs/bpf/bpflock/kmodlock/",
