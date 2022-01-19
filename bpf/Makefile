@@ -46,7 +46,7 @@ $(BUILDLIB) $(BUILDLIB)/libbpf:
 	$(Q)mkdir -p $@
 
 $(LIBBPF_SRC):
-	test -d $(LIBBPF_SRC) || (echo "Error: libbpf sources are missing - please do: 'git submodule update --init'" ; false)
+	test -d $(LIBBPF_SRC) || (echo "Error: libbpf sources are missing - please do: 'git submodule update --init --recursive'" ; false)
 
 # Build libbpf.a
 $(LIBBPF_OBJ): $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch]) | $(BUILDLIB) $(BUILDLIB)/libbpf
@@ -75,6 +75,11 @@ $(BUILD)/%.skel.h: $(BUILD)/%.bpf.o | $(BUILD)
 	$(call msg,GEN-SKEL,$@)
 	$(Q)$(BPFTOOL) gen skeleton $< > $@
 
+.PHONY: clean
+clean:
+	@$(RM) -R $(BUILD)
+
+.PHONY: install
 install: $(TARGETS)
 	$(call msg, INSTALL bpf programs)
 	$(Q)$(INSTALL) -m 0755 -d $(DESTDIR)$(BINDIR)

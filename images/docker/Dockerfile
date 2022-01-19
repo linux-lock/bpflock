@@ -36,7 +36,7 @@ WORKDIR /go/src/github.com/linux-lock/bpflock
 COPY . .
 
 # Make bpf tools and bpflock daemon
-RUN make container-bpf-tools
+RUN make bpf-programs
 RUN make bpflock-daemon
 
 # Generate runtime image
