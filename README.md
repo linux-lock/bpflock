@@ -41,26 +41,26 @@ bpflock uses a simple declarative security profile.
 
 bpflock offer multiple security protections that can be classified as:
 
-* [Hardware Addition Attacks](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md)
-  - [USB Additions Protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
-
 * [Memory Protections](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md)
   - [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down)
   - [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
   - [BPF Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection)
   - [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#4-execution-of-memory-elf-binaries)
 
+* [Hardware Addition Attacks](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md)
+  - [USB Additions Protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
+
 * System and Application tracing
 
   - Trace privileged system operations
   - Trace applications at runtime
 
-* [Filesystem Protections](https://github.com/linux-lock/bpflock/tree/main/docs/filesystem-protections.md)
+* Filesystem Protections
 
   - Read-only root filesystem protection
   - sysfs protection
 
-* [Linux Namespaces Protections](https://github.com/linux-lock/bpflock#34-namespaces-protections)
+* Linux Namespaces Protections
 
 * Network protections
 
@@ -189,7 +189,7 @@ downloads the standard golang package.
 To build it just run:
 
 ```bash
-git submodule update --init
+git submodule update --init --recursive
 make
 ```
 
