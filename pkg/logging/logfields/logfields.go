@@ -49,4 +49,10 @@ const (
 
 	// Probe is the name of a status probe.
 	Probe = "probe"
+
+	// SysParamName is the name of the kernel parameter (sysctl)
+	SysParamName = "sysParamName"
+
+	// SysParamValue is the value of the kernel parameter (sysctl)
+	SysParamValue = "sysParamValue"
 )
