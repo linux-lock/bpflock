@@ -186,14 +186,30 @@ bpflock uses [docker BuildKit](https://docs.docker.com/develop/develop-images/bu
 [Golang](https://go.dev/doc/install) to make some checks and run tests. bpflock is built inside Ubuntu container that
 downloads the standard golang package.
 
-To build it just run:
-
+Run the following to build the bpflock docker container:
 ```bash
 git submodule update --init --recursive
 make
 ```
 
 Bpf programs are built using libbpf. The docker image used is Ubuntu.
+
+
+If you want to only build the bpf programs directly without using docker, then on Ubuntu:
+```bash
+sudo apt install -y pkg-config bison binutils-dev build-essential \
+        flex libc6-dev clang-12 libllvm12 llvm-12-dev libclang-12-dev \
+        zlib1g-dev libelf-dev libfl-dev gcc-multilib zlib1g-dev \
+        libcap-dev libiberty-dev libbfd-dev
+```
+
+Then run:
+```bash
+make bpf-programs
+```
+
+In this case the generated programs will be inside the ./bpf/build/... directory.
+
 
 ## Credits
 
