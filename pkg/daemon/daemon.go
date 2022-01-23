@@ -60,6 +60,9 @@ func (d *Daemon) init() error {
 		log.WithError(err).WithField(logfields.Path, option.Config.StateDir).Fatal("Could not change to runtime directory")
 	}
 
+	// Let's apply system settings
+	applySystemSettings()
+
 	// Start all bpf programs again
 	return bpf.BpfLsmEnable()
 }
