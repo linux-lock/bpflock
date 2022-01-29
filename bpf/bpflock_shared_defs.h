@@ -79,6 +79,7 @@ struct bpflock_object {
 #define SHARED_PIDNSMAP         "bpflock_pidnsmap"
 #define SHARED_NETNSMAP         "bpflock_netnsmap"
 #define SHARED_MNTNSMAP         "bpflock_mntnsmap"
+#define SHARED_EVENTS           "bpflock_events"
 
 /* cgroup entry that will reference the per container profile */
 struct cgroup_map_entry {
