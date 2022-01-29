@@ -11,6 +11,8 @@
 #include "bpflock_shared_defs.h"
 #include "bpflock_shared_object_ids.h"
 
+#include "bpflock_maps.bpf.h"
+
 struct bl_stat {
         unsigned long  st_dev;	/* Device.  */
         unsigned long  st_ino;	/* File serial number.  */
@@ -142,39 +144,63 @@ static __always_inline bool is_cgroup_allowed(struct bpf_map *map, uint32_t filt
         return false;        
 }
 
+static __always_inline void collect_event_types(struct process_event *event, int ptype,
+                                                int attach, uint64_t eventid)
+{
+        if (event) {
+                event->prog_type = ptype;
+                event->attach_type = attach;
+                event->pevent_id = eventid;
+        }
+}
+
+static __always_inline void collect_event_uid(struct process_event *event)
+{
+        if (event) {
+                uint64_t id = bpf_get_current_uid_gid();
+                event->uid = (uid_t)id;
+                event->gid = id >> 32;
+        }
+}
+
+static __always_inline void collect_event_pid_info(struct process_event *event)
+{
+        if (event) {
+                const char unsigned *p;
+                struct task_struct *task;
+                uint64_t id = bpf_get_current_pid_tgid();
+                event->tgid = id >> 32;
+                event->pid = (pid_t)id;
+
+                task = (struct task_struct*)bpf_get_current_task();
+                event->cgroup_id = bpf_get_current_cgroup_id();
+                event->pidns_id = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns.inum);
+                event->mntns_id = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+
+                bpf_get_current_comm(&event->comm, sizeof(event->comm));
+                /* racy... */
+                if (event->tgid > 1) {
+                        event->ppid = (pid_t)BPF_CORE_READ(task, real_parent, tgid);
+                        p = (char unsigned *)BPF_CORE_READ(task, real_parent, comm);
+                        bpf_probe_read_kernel_str(&event->pcomm, sizeof(event->pcomm), p);
+                }
+        }
+}
+
 static __always_inline void collect_event_info(struct process_event *event, int ptype,
                                                 int attach, uint64_t eventid)
 {
-        uint64_t id;
-        const char unsigned *p;
-        struct task_struct *task;
-
         if (!event)
                 return;
 
-        event->prog_type = ptype;
-        event->attach_type = attach;
-        event->pevent_id = eventid;
+        collect_event_types(event, ptype, attach, eventid);
+        collect_event_uid(event);
+        collect_event_pid_info(event);
+}
 
-        id = bpf_get_current_pid_tgid();
-        event->tgid = id >> 32;
-        event->pid = (pid_t)id;
-        id = bpf_get_current_uid_gid();
-        event->uid = (uid_t)id;
-        event->gid = id >> 32;
-
-        task = (struct task_struct*)bpf_get_current_task();
-        event->cgroup_id = bpf_get_current_cgroup_id();
-        event->pidns_id = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns.inum);
-        event->mntns_id = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
-
-        bpf_get_current_comm(&event->comm, sizeof(event->comm));
-        /* racy... */
-        if (event->tgid > 1) {
-                event->ppid = (pid_t)BPF_CORE_READ(task, real_parent, tgid);
-                p = (char unsigned *)BPF_CORE_READ(task, real_parent, comm);
-                bpf_probe_read_kernel_str(&event->pcomm, sizeof(event->pcomm), p);
-        }
+static __always_inline void collect_info_output(struct bpf_map *map, struct process_event *event)
+{
+        bpf_ringbuf_output(map, event, sizeof(*event), 0);
 }
 
 static __always_inline int report(struct process_event *event, const char *op,
@@ -187,20 +213,29 @@ static __always_inline int report(struct process_event *event, const char *op,
         if (event) {
                 event->retval = ret;
                 event->reason = reason;
+
+                collect_info_output((struct bpf_map *)&bpflock_events, event);
         }
 
         /* If debug send bpf_printk events */
         if (debug) {
+                const char unsigned *p;
+                struct task_struct *task;
+
                 id = bpf_get_current_pid_tgid();
                 pid = id >> 32;
                 bpf_get_current_comm(&comm, sizeof(comm));
 
-                bpf_printk("bpflock pid=%d comm=%s event=%s\n",
-                           pid, comm, op);
-                bpf_printk("bpflock pid=%d event=%s status=%s\n",
-                           pid, op, get_reason_str(ret, reason));
-        }
+                task = (struct task_struct*)bpf_get_current_task();
+                bpf_printk("bpflock event=%s  pid=%d  comm=%s\n", op, pid, comm);
 
+                p = (char unsigned *)BPF_CORE_READ(task, real_parent, comm);
+                bpf_probe_read_kernel_str(&comm, sizeof(comm), p);
+
+                bpf_printk("bpflock event=%s  pid=%d  parent_comm=%s\n", op, pid, comm);
+                bpf_printk("bpflock event=%s  pid=%d  status=%s\n",
+                           op, pid, get_reason_str(ret, reason));
+        }
         return ret;
 }
 
