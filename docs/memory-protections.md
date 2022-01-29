@@ -2,11 +2,9 @@
 
 ## Sections
 
-  1. [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/blob/main/docs/memory--profile=rotections.md#1-kernel-image-lock-down)
-  2. [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory--profile=rotections.md#2-kernel-modules--profile=rotections)
-  3. [BPF Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory--profile=rotections.md#3-bpf--profile=rotection)
-  4. [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/docs/memory--profile=rotections.md#4-execution-of-memory-elf-binaries)
-
+  - [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#1-kernel-image-lock-down)
+  - [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protection)
+  - [BPF Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection)
 
 ## 1. Kernel Image Lock-down
 
@@ -53,7 +51,8 @@ in the initial [pid namespace](https://man7.org/linux/man-pages/man7/pid_namespa
  
  * Blocked access:
 
-   Under baseline profile, the kernel image lock-down will be enforced for all processes that are not in the initial pid namespace, and [kernel features](https://github.com/linux-lock/bpflock/blob/main/docs/memory--profile=rotections.md#1-kernel-image-lock-down) to modify the running kernel are blocked. Special access exceptions can be set to allow some specific operations.
+   Under baseline profile, the kernel image lock-down will be enforced for all processes that are not in the initial pid
+   namespace, and [kernel features](https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#1-kernel-image-lock-down) to modify the running kernel are blocked. Special access exceptions can be set to allow some specific operations.
 
  * Baseline profile access exceptions:
    
@@ -112,7 +111,7 @@ To disable this program delete the directory `/sys/fs/bpf/bpflock/kimglock` and 
 If `/sys` is read-only and can not be remounted, then `kimglock` is pinned and continues to run.
 
 
-## 2 Kernel Modules Protections
+## 2 Kernel Modules Protection
 
 ### 2.1 Introduction
 

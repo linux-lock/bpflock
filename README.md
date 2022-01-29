@@ -43,24 +43,23 @@ bpflock offer multiple security protections that can be classified as:
 
 * [Memory Protections](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md)
   - [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down)
-  - [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
+  - [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protection)
   - [BPF Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#3-bpf-protection)
-  - [Execution of Memory ELF binaries](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#4-execution-of-memory-elf-binaries)
+
+* [Process Protections](https://github.com/linux-lock/bpflock/tree/main/docs/process-protections.md)
+  - [Fileless Memory Execution](https://github.com/linux-lock/bpflock/tree/main/docs/process-protections.md#fileless-memory-execution)
+  - [Namespaces protection](https://github.com/linux-lock/bpflock/tree/main/docs/process-protections.md#namespaces-protection)
 
 * [Hardware Addition Attacks](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md)
   - [USB Additions Protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
 
 * System and Application tracing
-
+  - Trace application execution
   - Trace privileged system operations
-  - Trace applications at runtime
 
 * Filesystem Protections
-
   - Read-only root filesystem protection
   - sysfs protection
-
-* Linux Namespaces Protections
 
 * Network protections
 
@@ -70,20 +69,22 @@ bpflock offer multiple security protections that can be classified as:
 
 bpflock keeps the security semantics simple. It support three declarative profiles models to broadly cover the security sepctrum, and restrict access to specific Linux features.
 
-* `profile`:
-  - `allow|none|privileged` : they are the same, they define the least secure profile. In this profile access is logged and allowed for all processes, useful for security events.
-  - `baseline` : minimal restricive profile, only programs in the initial pid namespace are allowed access.
-  - `restricted` : heavily restricted profile where access is denied for all processes.
+Also bpflock creates multiple shared bpf maps under `/sys/fs/bpf/` to store per container and namespaces profiles. The following: `bpflock_cgroupmap`, `bpflock_pidnsmap` and `bpflock_netnsmap` are used to check per pod, container or app access.
+
+* `profile`: this is the global profile that takes one of the followings.
+  - `allow|none|privileged` : they are the same, they define the least secure profile. In this profile access is logged and allowed for all processes. Useful to log security events.
+  - `baseline` : minimal restricive profile, only programs that are present in the `bpflock_cgroupmap`, `bpflock_pidnsmap` and `bpflock_netnsmap` are allowed according to their per context profile. By default the `bpflock_pidnsmap` contains the initial pid namespace, therefore all processes in the initial pid namespace are allowed.
+  - `restricted` : heavily restricted profile where access is denied for all processes. The shared bpflock maps are not consulted under this global profile.
 
 * `Allowed` or `blocked` operations/commands:
 
-  Under the `baseline` profile, a list of allowed or blocked commands can be specified that will be applied to the type of security protection.
+  Under the global `baseline` profile, a list of allowed or blocked commands can be specified that will be applied to the type of security protection.
   - `--protection-allow` : comma-separated list of allowed operations. Valid under `baseline` profile, this is useful for applications that are too specific and require privileged operations, it will reduce the use of the `allow | privileged` profile and offer a case-by-case definitions.
   - `--protection-block` : comma-separated list of blocked operations. Valid under `baseline` profile, useful to achieve a more `restricted` profile. The other way from `restricted` to `baseline` is not supported.
 
-
 For bpf security examples check [bpflock configuration examples](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/)
 
+**Note: the above semantics may change.**.
 
 ## 3. Deployment
 
@@ -123,7 +124,7 @@ Note: this is a temporary testing solution, bpflock will soon display all logs d
 
 #### Kernel Modules Protection
 
-To apply [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protections)
+To apply [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#2-kernel-modules-protection)
 run with environment variable `BPFLOCK_KMODLOCK_PROFILE=baseline` or `BPFLOCK_KMODLOCK_PROFILE=restricted`:
 ```bash
 docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
