@@ -198,7 +198,7 @@ static __always_inline void collect_event_info(struct process_event *event, int 
         collect_event_pid_info(event);
 }
 
-static __always_inline void collect_info_output(struct bpf_map *map, struct process_event *event)
+static __always_inline void write_event(struct bpf_map *map, struct process_event *event)
 {
         bpf_ringbuf_output(map, event, sizeof(*event), 0);
 }
@@ -214,7 +214,7 @@ static __always_inline int report(struct process_event *event, const char *op,
                 event->retval = ret;
                 event->reason = reason;
 
-                collect_info_output((struct bpf_map *)&bpflock_events, event);
+                write_event((struct bpf_map *)&bpflock_events, event);
         }
 
         /* If debug send bpf_printk events */
