@@ -12,6 +12,7 @@
 /* This is the bpflock object which the whole program ID */ 
 enum bpflock_object_id {
         NONE_ID                      = 0,
+        EXECSNOOP_ID,
         BPFRESTRICT_ID,
         KMODLOCK_ID,
         KIMGLOCK_ID,
