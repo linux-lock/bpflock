@@ -18,7 +18,8 @@
  */
 
 /*
- * Per container profile must be pinned by name
+ * Per cgroup container profile must be pinned by name
+ * Able to contain all profiles: privileged, baseline, restricted.
  */
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
@@ -28,34 +29,44 @@ struct {
         __uint(pinning, LIBBPF_PIN_BY_NAME);
 } bpflock_cgroupmap SEC(".maps");
 
-/* Per pidns profile */
+/*
+ * Per pidns profile, contains the initial host pid namespace with
+ * a profile `allow|privileged`.
+ * Tracking other tasks should be done per the cgroup unless a real
+ * use case comes a long.
+ */
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 16384);
+        __uint(max_entries, 1);
         __type(key, unsigned int);
         __type(value, struct pidns_map_entry);
         __uint(pinning, LIBBPF_PIN_BY_NAME);
 } bpflock_pidnsmap SEC(".maps");
 
-/* Per mntns profile */
+/*
+ * Per netns profile, contains the initial host net namespace with
+ * a profile `allow|privileged`.
+ * Tracking other tasks should be done per the cgroup unless a real
+ * use case comes a long.
+ */
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 16384);
+        __uint(max_entries, 1);
         __type(key, unsigned int);
         __type(value, struct netns_map_entry);
         __uint(pinning, LIBBPF_PIN_BY_NAME);
 } bpflock_netnsmap SEC(".maps");
 
-/* Per mntns profile */
+/* Per mntns profile: usage is restricted and it will be removed */
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 16384);
+        __uint(max_entries, 1024);
         __type(key, unsigned int);
         __type(value, struct mntns_map_entry);
         __uint(pinning, LIBBPF_PIN_BY_NAME);
 } bpflock_mntnsmap SEC(".maps");
 
-/* Output ringbuffer */
+/* Bpflock output ringbuffer */
 struct {
         __uint(type, BPF_MAP_TYPE_RINGBUF);
         __uint(max_entries, 1 << 24);
