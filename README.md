@@ -67,20 +67,20 @@ bpflock offer multiple security protections that can be classified as:
 
 ### 2.2 Semantics
 
-bpflock keeps the security semantics simple. It support three declarative profiles models to broadly cover the security sepctrum, and restrict access to specific Linux features.
+bpflock keeps the security semantics simple. It support three **global** profiles to broadly cover the security sepctrum, and restrict access to specific Linux features.
 
-Also bpflock creates multiple shared bpf maps under `/sys/fs/bpf/` to store per container and namespaces profiles. The following: `bpflock_cgroupmap`, `bpflock_pidnsmap` and `bpflock_netnsmap` are used to check per pod, container or app access.
+Therefore, bpflock creates multiple shared bpf maps under `/sys/fs/bpf/` to store per container profiles. The `bpflock_cgroupmap` should be the one that will be used in future to filter per apps, containers and pods. The `bpflock_pidnsmap` and `bpflock_netnsmap` are used to only store the host pid and net namespaces.
 
-* `profile`: this is the global profile that takes one of the followings.
+* `profile`: this is the global profile that takes one of the followings:
   - `allow|none|privileged` : they are the same, they define the least secure profile. In this profile access is logged and allowed for all processes. Useful to log security events.
-  - `baseline` : minimal restricive profile, only programs that are present in the `bpflock_cgroupmap`, `bpflock_pidnsmap` and `bpflock_netnsmap` are allowed according to their per context profile. By default the `bpflock_pidnsmap` contains the initial pid namespace, therefore all processes in the initial pid namespace are allowed.
-  - `restricted` : heavily restricted profile where access is denied for all processes. The shared bpflock maps are not consulted under this global profile.
+  - `baseline` : restrictive profile where access is denied for all processes, except applications and containers that run in the host namespace, or applications that are present in the allow `bpflock_cgroupmap`.
+  - `restricted` : heavily restricted profile where access is denied for all processes.
 
 * `Allowed` or `blocked` operations/commands:
 
-  Under the global `baseline` profile, a list of allowed or blocked commands can be specified that will be applied to the type of security protection.
-  - `--protection-allow` : comma-separated list of allowed operations. Valid under `baseline` profile, this is useful for applications that are too specific and require privileged operations, it will reduce the use of the `allow | privileged` profile and offer a case-by-case definitions.
-  - `--protection-block` : comma-separated list of blocked operations. Valid under `baseline` profile, useful to achieve a more `restricted` profile. The other way from `restricted` to `baseline` is not supported.
+  Under the `allow|privileged` or `baseline` profiles, a list of allowed or blocked commands can be specified and will be applied.
+  - `--protection-allow` : comma-separated list of allowed operations. Valid under `baseline` profile, this is useful for applications that are too specific and perform privileged operations. It will reduce the use of the `allow | privileged` profile, so instead of using the `privileged` profile, we can specify the `baseline` one and add a set of allowed commands to offer a case-by-case definition for such applications.
+  - `--protection-block` : comma-separated list of blocked operations. Valid under `allow|privileged` and `baseline` profiles, it allows to restrict access to some features without using the full `restricted` profile that might break some specific applications. Using `baseline` or `privileged` profiles opens the gate to access most Linux features, but with the `--protection-block` option some of this access can be blocked.
 
 For bpf security examples check [bpflock configuration examples](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/)
 
@@ -121,6 +121,7 @@ Then in another terminal read from the tracing pipe to see logs:
 sudo cat /sys/kernel/debug/tracing/trace_pipe
 ```
 Note: this is a temporary testing solution, bpflock will soon display all logs directly.
+
 
 #### Kernel Modules Protection
 
