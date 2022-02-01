@@ -26,7 +26,7 @@ that run on their own namespace will be restricted. If bpflock bpf programs run 
 programs/containers will be denied access even privileged ones. The filtering model will be augmented soon to include
 per cgroupv2 filetring.
 
-bpflock protects Linux machines by taking advantage of multiple security features including [Linux Security Modules + BPF](https://www.kernel.org/doc/html/latest/bpf/bpf_lsm.html).
+bpflock protects Linux machines by taking advantage of multiple security features including [Linux Security Modules + BPF](https://docs.kernel.org/bpf/prog_lsm.html).
 
 Architecture and Security design notes:
 - bpflock is not a mandatory access control labeling solution, and it does not intent to replace
