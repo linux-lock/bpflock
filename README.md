@@ -1,6 +1,7 @@
 # bpflock - Lock Linux machines
-
-![Bpflock Logo](docs/images/bpflock-logo-small.png)
+<p align="center">
+  <img src="docs/images/bpflock-logo-small.png" />
+</p>
 
 bpflock - eBPF driven security for locking and auditing Linux machines.
 
