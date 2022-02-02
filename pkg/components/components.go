@@ -13,9 +13,11 @@ const (
 	// BpflockAgentName is the name of bpflock agent (daemon) process name.
 	BpflockAgentName = "bpflock"
 
-	BpfRestrict = "bpfrestrict"
-	KimgLock    = "kimglock"
-	KmodLock    = "kmodlock"
+	BpfRestrict  = "bpfrestrict"
+	KimgLock     = "kimglock"
+	KmodLock     = "kmodlock"
+	FilelessLock = "filelesslock"
+	ExecSnoop    = "execsnoop"
 )
 
 // IsBpflockAgent checks whether the current process is bpflock (daemon).
