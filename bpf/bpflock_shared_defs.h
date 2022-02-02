@@ -33,10 +33,10 @@
 enum {
         INIT_PROC_ROOT_INO      = 1,
         INIT_USERNS_ID_INO      = 0xEFFFFFFDU,
-        INIT_PIDNS_ID_INO       = 0xEFFFFFFCU,
-        INIT_CGROUPNS_ID_INO    = 0xEFFFFFFBU,
+        INIT_PIDNS_ID_INO       = 0xEFFFFFFCU, /* PROC_PID_INIT_INO */
+        INIT_CGROUPNS_ID_INO    = 0xEFFFFFFBU, /* PROC_CGROUP_INIT_INO */
         INIT_MNTNS_ID_INO       = 0xF0000000U,
-        INIT_NETNS_ID_INO       = 0xF00000A8U,
+        INIT_NETNS_ID_INO       = 0xF0000098U,
 };
 
 /* Bpflock profile filters */
@@ -55,7 +55,7 @@ enum bpflock_profile {
         BPFLOCK_P_RESTRICTED,
 };
 
-enum reason {
+enum reason_value {
         reason_allow                    = 1,    /* Allow */
         reason_baseline_allowed,                /* Baseline but allowed with exception */
         reason_baseline,                        /* Baseline */
@@ -118,16 +118,18 @@ struct process_event {
 
         unsigned int    mntns_id;
         unsigned int    pidns_id;
-        unsigned int    netns_id;
+        uint64_t        netns_id;
 
-        /* Return value of the bpf program */
+        /* Return value of the bpf program for LSM or of the kernel function */
         int             retval;
 
-        /* Map filters that allowed the access */
+        /* Map filters that matched the access */
         int             matched_filter;
 
-        /* Reason why access was allowed : enum reason */
+        /* Reason why access was allowed : enum reason_value */
         int             reason;
+
+        int             reserved1;
 
         char            comm[TASK_COMM_LEN];
         char            pcomm[TASK_COMM_LEN];
