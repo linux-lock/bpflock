@@ -95,7 +95,15 @@ const (
 
 	// EnableIPv6 is the default value for IPv6 enablement
 	EnableIPv6 = true
+)
 
+const (
+	BpflockPAllow = iota + 1
+	BpflockPBaseline
+	BpflockPRestricted
+)
+
+const (
 	// BpfProfileAllow is the "allow" "none" or "privileged" profile
 	BpfProfileAllow      = "allow"
 	BpfProfileNone       = "none"
@@ -106,4 +114,12 @@ const (
 
 	// BpfProfileRestricted is deny some privileged operations
 	BpfProfileRestricted = "restricted"
+)
+
+const (
+	BpflockReasonAllow              = iota + 1 /* Allow */
+	BpflockReasonBaselineAllowed               /* Baseline but allowed with exception */
+	BpflockReasonBaseline                      /* Baseline */
+	BpflockReasonBaselineRestricted            /* Baseline but restricted */
+	BpflockReasonRestricted                    /* Restricted */
 )
