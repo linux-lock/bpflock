@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/cilium/cilium v1.11.0
+	github.com/cilium/ebpf v0.7.0
 	github.com/go-openapi/errors v0.20.1
 	github.com/go-openapi/loads v0.21.0
 	github.com/go-openapi/runtime v0.21.0
