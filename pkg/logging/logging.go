@@ -178,12 +178,7 @@ func GetFormatter(format LogFormat) logrus.Formatter {
 	switch format {
 	case LogFormatText:
 		return &logrus.TextFormatter{
-			DisableTimestamp: true,
 			DisableColors:    true,
-		}
-	case LogFormatJSON:
-		return &logrus.JSONFormatter{
-			DisableTimestamp: true,
 		}
 	}
 
