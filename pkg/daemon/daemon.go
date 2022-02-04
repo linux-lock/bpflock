@@ -63,8 +63,14 @@ func (d *Daemon) init() error {
 	// Let's apply system settings
 	applySystemSettings()
 
-	// Start all bpf programs again
-	return bpf.BpfLsmEnable()
+	// Start all bpf programs
+	if err := bpf.BpfLsmEnable(); err != nil {
+		// make sure to disable all bpf programs on failures
+		bpf.BpfLsmDisable()
+		return err
+	}
+
+	return nil
 }
 
 // NewDaemon creates and returns a new Daemon with the parameters set in c.
@@ -85,7 +91,7 @@ func NewDaemon(ctx context.Context, cancel context.CancelFunc) (*Daemon, error) 
 		log.WithError(err).Fatal("Unable to set memory resource limits")
 	}
 
-	// Remove any old bpf programs
+	// Remove any previous old bpf programs
 	bpf.BpfLsmDisable()
 
 	d := Daemon{
@@ -101,6 +107,10 @@ func NewDaemon(ctx context.Context, cancel context.CancelFunc) (*Daemon, error) 
 			bpf.BpfLsmDisable()
 		})
 	}
+
+	cleaner.cleanupFuncs.Add(func() {
+		bpf.DestroyEmbeddedProgs()
+	})
 
 	err = d.init()
 	if err != nil {
