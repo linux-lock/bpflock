@@ -25,7 +25,7 @@ struct sb_elem {
 };
 
 static __always_inline bool valid_uid(uid_t uid) {
-	return uid != INVALID_UID;
+        return uid != INVALID_UID;
 }
 
 static __always_inline uint64_t get_event_id(uint32_t program_id, uint32_t id)
@@ -40,32 +40,33 @@ static __always_inline bool is_profile_allowed(int profile)
 
 static __always_inline const char *get_reason_str(const int ret, int reason)
 {
-	switch (reason) {
-	case reason_allow:
-		return "allowed (privileged)";
-	case reason_baseline_allowed:
-		return "allowed (baseline)";
-	case reason_baseline:
-		return (ret < 0) ? "denied (baseline)" :
-			"allowed (baseline)";
-	case reason_baseline_restricted:
-		return "denied (baseline)";
-	case reason_restricted:
-		return "denied (restricted)";
-	}
+        switch (reason) {
+        case reason_allow:
+                return "allowed (privileged)";
+        case reason_baseline_allowed:
+                return "allowed (baseline)";
+        case reason_baseline:
+                return (ret < 0) ? "denied (baseline)" :
+                        "allowed (baseline)";
+        case reason_baseline_restricted:
+                return "denied (baseline)";
+        case reason_restricted:
+                return "denied (restricted)";
+        }
 
         /* Return empty */
-	return "";
+        return "";
 }
 
 static __always_inline bool is_mntns_allowed(struct bpf_map *map, uint32_t filter,
                                              struct process_event *event)
 {
+        bool allowed = false;
         unsigned int id = 0;
         struct task_struct *task;
         struct mntns_map_entry *val_mntns;
 
-	/* If filter does not match or can't read it then allow */
+        /* If filter does not match or can't read it then allow */
         if (!(filter & BPFLOCK_P_FILTER_MNTNS))
                 return false;
 
@@ -80,29 +81,79 @@ static __always_inline bool is_mntns_allowed(struct bpf_map *map, uint32_t filte
 
         val_mntns = bpf_map_lookup_elem(map, &id);
         if (!val_mntns)
-                return false;
+                goto init_mnt_ns;
 
         if (is_profile_allowed(val_mntns->profile)) {
-                if (event)
-                        event->matched_filter |= BPFLOCK_P_FILTER_MNTNS;
-                return true;
+                allowed = true;
+                goto out;
         }
 
-        return false;
+init_mnt_ns:
+        /* This is a fallback in case map disapears */
+        if (id == INIT_MNTNS_ID_INO)
+                allowed = true;
+out:
+        if (allowed && event)
+                event->matched_filter |= BPFLOCK_P_FILTER_MNTNS;
+
+        return allowed;
+}
+
+static __always_inline bool is_netns_allowed(struct bpf_map *map, uint32_t filter,
+                                             struct process_event *event)
+{
+        u64 id = 0;
+        bool allowed = false;
+        struct task_struct *task;
+        struct netns_map_entry *val_netns;
+
+        /* If filter does not match or can't read it then allow */
+        if (!(filter & BPFLOCK_P_FILTER_NETNS))
+                return allowed;
+
+        /* If we can't get event then do not block */
+        if (event)
+                id = event->netns_id;
+
+        if (!id) {
+                task = (struct task_struct*)bpf_get_current_task();
+                id = BPF_CORE_READ(task, nsproxy, net_ns, ns.inum);
+        }
+
+        val_netns = bpf_map_lookup_elem(map, &id);
+        if (!val_netns)
+                goto init_net_ns;
+
+        if (is_profile_allowed(val_netns->profile)) {
+                allowed = true;
+                goto out;
+        }
+
+init_net_ns:
+        /* This is a fallback to use netns cookies
+        if (bpf_get_netns_cookie(NULL) == id)
+                allowed = true;
+        */
+out:
+        if (allowed && event)
+                event->matched_filter |= BPFLOCK_P_FILTER_NETNS;
+
+        return allowed;
 }
 
 static __always_inline bool is_pidns_allowed(struct bpf_map *map, uint32_t filter,
-					     struct process_event *event)
+                                             struct process_event *event)
 {
+        bool allowed = false;
         unsigned int id = 0;
         struct task_struct *task;
         struct pidns_map_entry *val_pidns;
 
-	/* If filter does not match or can't read it then block it */
+        /* If filter does not match or can't read it then block it */
         if (!(filter & BPFLOCK_P_FILTER_PIDNS))
-                return false;
+                return allowed;
 
-        /* If we can't get event then do not block */
+        /* If we don't have event then do not block */
         if (event)
                 id = event->pidns_id;
 
@@ -113,24 +164,31 @@ static __always_inline bool is_pidns_allowed(struct bpf_map *map, uint32_t filte
 
         val_pidns = bpf_map_lookup_elem(map, &id);
         if (!val_pidns)
-                return false;
+                goto init_pid_ns;
 
         if (is_profile_allowed(val_pidns->profile)) {
-                if (event)
-                        event->matched_filter |= BPFLOCK_P_FILTER_PIDNS;
-                return true;
+                allowed = true;
+                goto out;
         }
 
-        return false;
+init_pid_ns:
+        /* This is a fallback in case map disapears */
+        if (id == INIT_PIDNS_ID_INO)
+                allowed = true;
+out:
+        if (allowed && event)
+                event->matched_filter |= BPFLOCK_P_FILTER_PIDNS;
+
+        return allowed;
 }
 
 static __always_inline bool is_cgroup_allowed(struct bpf_map *map, uint32_t filter,
-					      struct process_event *event, int cgrp_incestor_level)
+                                              struct process_event *event, int cgrp_incestor_level)
 {
         uint64_t id = 0;
         struct cgroup_map_entry *val_cgroup;
 
-	/* If filter does not match or can't read it then block */
+        /* If filter does not match or can't read it then block */
         if (!(filter & BPFLOCK_P_FILTER_CGROUP))
                 return false;
 
@@ -152,12 +210,13 @@ static __always_inline bool is_cgroup_allowed(struct bpf_map *map, uint32_t filt
 }
 
 static __always_inline void collect_event_types(struct process_event *event, int ptype,
-                                                int attach, uint64_t eventid)
+                                                int attach, int progid, int eventid)
 {
         if (event) {
                 event->prog_type = ptype;
                 event->attach_type = attach;
-                event->pevent_id = eventid;
+                event->program_id = progid;
+                event->event_id = eventid;
         }
 }
 
@@ -180,7 +239,7 @@ static __always_inline void collect_event_pid_comm(struct process_event *event, 
                 /* racy... */
                 if (parent && event->tgid > 1) {
                         task = (struct task_struct*)bpf_get_current_task();
-                        event->ppid = (pid_t)BPF_CORE_READ(task, real_parent, tgid);
+                        event->ppid = (pid_t)BPF_CORE_READ(task, real_parent, pid);
                         p = (char unsigned *)BPF_CORE_READ(task, real_parent, comm);
                         bpf_probe_read_kernel_str(&event->pcomm, sizeof(event->pcomm), p);
                 }
@@ -199,6 +258,7 @@ static __always_inline void collect_event_pid_info(struct process_event *event)
                 event->cgroup_id = bpf_get_current_cgroup_id();
                 event->pidns_id = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns.inum);
                 event->mntns_id = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+                event->netns_id = BPF_CORE_READ(task, nsproxy, net_ns, ns.inum);
         }
 }
 
@@ -211,12 +271,12 @@ static __always_inline void collect_event_result(struct process_event *event, co
 }
 
 static __always_inline void collect_event_info(struct process_event *event, int ptype,
-                                                int attach, uint64_t eventid)
+                                                int attach, int progid, int eventid)
 {
         if (!event)
                 return;
 
-        collect_event_types(event, ptype, attach, eventid);
+        collect_event_types(event, ptype, attach, progid, eventid);
         collect_event_uid(event);
         collect_event_pid_info(event);
         collect_event_pid_comm(event, true);
@@ -227,7 +287,7 @@ static __always_inline void write_event(struct bpf_map *map, struct process_even
         bpf_ringbuf_output(map, event, sizeof(*event), 0);
 }
 
-static __always_inline int report(struct process_event *event, const char *op,
+static __always_inline int report(struct process_event *event, int event_id,
                                   const int ret, int reason, bool debug)
 {
         pid_t pid;
@@ -249,15 +309,15 @@ static __always_inline int report(struct process_event *event, const char *op,
                 bpf_get_current_comm(&comm, sizeof(comm));
 
                 task = (struct task_struct*)bpf_get_current_task();
-                bpf_printk("bpflock event=%s  pid=%d  comm=%s\n", op, pid, comm);
+                bpf_printk("bpflock  event=%d  pid=%d  comm=%s\n", event_id, pid, comm);
 
                 p = (char unsigned *)BPF_CORE_READ(task, real_parent, comm);
                 bpf_probe_read_kernel_str(&comm, sizeof(comm), p);
 
-                bpf_printk("bpflock event=%s  pid=%d  parent_comm=%s\n", op, pid, comm);
-                bpf_printk("bpflock event=%s  pid=%d  status=%s\n",
-                           op, pid, get_reason_str(ret, reason));
+                bpf_printk("bpflock  event=%d  pid=%d  parent_comm=%s\n", event_id, pid, comm);
+                bpf_printk("bpflock  event=%d  pid=%d  access_return=%d\n", event_id, pid, ret);
         }
+
         return ret;
 }
 
