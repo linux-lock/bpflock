@@ -176,9 +176,6 @@ func (e *ExecSnoopBpf) Attach(target string) error {
 	}
 
 	e.ring = rd
-
-	log.Infof("ring buffer at: %p    %+v\n", rd, rd)
-
 	return nil
 }
 
