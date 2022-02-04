@@ -12,9 +12,8 @@ include Makefile.defs
 # We need this to load in-container related variables
 ifeq ($(BASE_IMAGE),)
     -include Makefile.docker
-    $(info Load Makefile.docker)
 else
-   export BASE_IMAGE
+    export BASE_IMAGE
 endif
 
 ifneq ($(strip $(GO)),)

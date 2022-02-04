@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Djalal Harouni
+# Copyright 2022 Djalal Harouni
 
 # Build variables
 LIBBPF_UAPI := $(abspath $(LIBBPF)/include/uapi)
 LIBBPF_SRC := $(abspath $(LIBBPF)/src)
 LIBBPF_OBJ := $(abspath $(BUILDLIB)/libbpf/libbpf.a)
 
-CLANG ?= clang-$(LLVM_VERSION)
-CFLAGS := -g -O2 -Wall -Werror $(CFLAGS)
-LLVM_STRIP ?= llvm-strip-$(LLVM_VERSION)
-INCLUDES := -I$(DIST_LIBDIR) -I$(LIBBPF_UAPI) -I$(BUILD)
+export CLANG ?= clang-$(LLVM_VERSION)
+export CFLAGS := -g -O2 -Wall -Werror $(CFLAGS)
+export LLVM_STRIP ?= llvm-strip-$(LLVM_VERSION)
+export INCLUDES ?= -I$(DIST_LIBDIR) -I$(LIBBPF_UAPI) -I$(BUILD)
 
 UIDGID := $(shell stat -c '%u:%g' ${ROOT_DIR})
 
@@ -22,10 +22,11 @@ msg = @printf '  %-8s %s%s\n' "$(1)" "$(notdir $(2))" "$(if $(3), $(3))";
 # MAKEFLAGS += --no-print-directory
 endif
 
+        #kmodlock
+        # kimglock
 TARGETS = \
         bpfrestrict \
-        kmodlock \
-        # kimglock \
+        filelesslock \
         #
 
 COMMON_OBJ = \
@@ -38,8 +39,8 @@ COMMON_OBJ = \
         #
 
 .PHONY: all
-all: $(LIBBPF_OBJ) $(TARGETS)
-	$(info MAKE: finished building cbpf tools)
+all: clean-objects $(LIBBPF_OBJ) gobpf-packages $(TARGETS)
+	$(info MAKE: finished building Golang and C bpf programs)
 
 $(BUILDLIB) $(BUILDLIB)/libbpf:
 	$(call msg,MKDIR,$@)
@@ -55,15 +56,19 @@ $(LIBBPF_OBJ): $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch]) | $(BUILDLIB) $(BU
 		OBJDIR=$(dir $@) DESTDIR=$(DIST_LIBDIR) \
 		INCLUDEDIR= LIBDIR= UAPIDIR= install
 
-$(BUILD)/%.o: %.c $(wildcard %.h) $(LIBBPF_OBJ) | $(BUILD)
-	$(call msg,CC,$@)
-	$(Q)$(CC) $(CFLAGS) -I$(DIST_LIBDIR) -I$(LIBBPF_UAPI) -I$(BUILD) -c $(filter %.c,$^) -o $@
-
 $(TARGETS): %: $(BUILD)/%.o $(LIBBPF_OBJ) $(COMMON_OBJ) | $(DIST_BPFDIR)
 	$(call msg,MAKE BINARY,$(DIST_BPFDIR)/$@)
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -lelf -lz -o $(DIST_BPFDIR)/$@
 
 $(patsubst %,$(BUILD)/%.o,$(TARGETS)): %.o: %.skel.h
+
+$(BUILD)/%.o: %.c $(wildcard %.h) $(LIBBPF_OBJ) | $(BUILD)
+	$(call msg,CC,$@)
+	$(Q)$(CC) $(CFLAGS) -I$(DIST_LIBDIR) -I$(LIBBPF_UAPI) -I$(BUILD) -c $(filter %.c,$^) -o $@
+
+$(BUILD)/%.skel.h: $(BUILD)/%.bpf.o | $(BUILD)
+	$(call msg,GEN-SKEL,$@)
+	$(Q)$(BPFTOOL) gen skeleton $< > $@
 
 $(BUILD)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(ARCH)/vmlinux.h | $(BUILD)
 	$(call msg,BPF,$@)
@@ -71,13 +76,17 @@ $(BUILD)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(ARCH)/vmlinux.h | $(BU
 		-I$(ARCH)/ $(INCLUDES) -c $(filter %.c,$^) -o $@ && \
 	$(LLVM_STRIP) -g $@
 
-$(BUILD)/%.skel.h: $(BUILD)/%.bpf.o | $(BUILD)
-	$(call msg,GEN-SKEL,$@)
-	$(Q)$(BPFTOOL) gen skeleton $< > $@
+gobpf-packages:
+	$(info MAKE: start building golang bpf programs)
+	@$(MAKE) -C $(shell pwd)/gobpf all
 
 .PHONY: clean
 clean:
 	@$(RM) -R $(BUILD)
+
+.PHONY: clean-objects
+clean-objects:
+	@$(RM) -f $(BUILD)/*.o $(BUILD)/*.skel.h
 
 .PHONY: install
 install: $(TARGETS)
