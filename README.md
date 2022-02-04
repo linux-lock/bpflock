@@ -53,9 +53,9 @@ bpflock offer multiple security protections that can be classified as:
 * [Hardware Addition Attacks](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md)
   - [USB Additions Protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
 
-* System and Application tracing
-  - Trace application execution
-  - Trace privileged system operations
+* [System and Application tracing](https://github.com/linux-lock/bpflock/tree/main/docs/system-and-application-tracing.md)
+  - [Trace Application Execution](https://github.com/linux-lock/bpflock/tree/main/docs/system-and-application-tracing.md#trace-application-execution)
+  - Trace Privileged System Operations
 
 * Filesystem Protections
   - Read-only root filesystem protection
@@ -73,7 +73,7 @@ Therefore, bpflock creates multiple shared bpf maps under `/sys/fs/bpf/` to stor
 
 * `profile`: this is the global profile that takes one of the followings:
   - `allow|none|privileged` : they are the same, they define the least secure profile. In this profile access is logged and allowed for all processes. Useful to log security events.
-  - `baseline` : restrictive profile where access is denied for all processes, except applications and containers that run in the host namespace, or applications that are present in the allow `bpflock_cgroupmap`.
+  - `baseline` : restrictive profile where access is denied for all processes, except privileged applications and containers that run in the host namespace, or applications that are present in the allow `bpflock_cgroupmap`.
   - `restricted` : heavily restricted profile where access is denied for all processes.
 
 * `Allowed` or `blocked` operations/commands:
