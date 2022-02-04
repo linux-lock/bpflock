@@ -8,11 +8,9 @@
 #define __BPFLOCK_UTILS_H
 
 #include <sys/stat.h>
-
-#define LOG_BPFLOCK "bpflock"
+#include <bpf/libbpf.h>
 
 #define LSM_BPF_PATH            "/sys/kernel/security/lsm"
-#define BPFLOCK_PIN_PATH        "/sys/fs/bpf/bpflock/"
 #define BPFLOCK_NS_MAP_PIN      "/sys/fs/bpf/bpflock/ns_map"
 
 #define STRV_FOREACH_BACKWARDS(s, l)                                \
@@ -43,8 +41,14 @@ int read_process_env(const char *path, char **ret);
 int read_task_ns_id(const char *path, unsigned long flag, unsigned int *ret_i);
 int read_task_mnt_id(const char *path, struct stat *st);
 int stat_sb_root(struct stat *st);
-int pin_init_task_ns(int fd);
 
 int is_lsmbpf_supported();
+
+int push_host_init_ns(struct bpf_map *);
+int bpf_assign_fd_to_map(struct bpf_map *);
+int bpf_reuse_shared_maps(struct bpf_object *);
+int bpflock_bpf_map__set_pin_path(struct bpf_map *, const char *);
+int bpflock_bpf_object_pin_maps(struct bpf_object *, const char *);
+int bpflock_bpf_object__pin(struct bpf_object *, const char *);
 
 #endif /* __BPFLOCK_UTILS_H */
