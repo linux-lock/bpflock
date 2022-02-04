@@ -16,6 +16,8 @@ kernel image, attempting to protect against unauthorized access.
 It combines the several Linux features including [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) and other LSMs to restrict
 unauthorized modification of the kernel image at runtime.
 
+After pinning the corresponding bpf program, kimglock will exit.
+
 **Note: restrictions and protections are still a moving target, since the Linux kernel offer multiple access entries to modify the running image, it is hard to track all of them, however they will be added as they are discovered.**
 
 kimglock is able to completely block or allow access from the
@@ -43,33 +45,31 @@ in the initial [pid namespace](https://man7.org/linux/man-pages/man7/pid_namespa
 
 `kimglock` supports the following options:
 
- * `profile`:
-    - `allow|none|privileged`: kernel image access is logged and allowed. Default profile.
-    - `baseline`: access is allowed only from processes that are in the initial pid namespace. This allows, container manager, systemd and others to properly setup the working environment and communicate with the correspondig hardware.
-    - `restricted`: direct and indirect access to a running kernel image is denied for all processes and containers.
+* `profile`:
+  - `allow|none|privileged`: kernel image access is logged and allowed. Default profile.
+  - `baseline` : restrictive profile where access is denied for all processes, except privileged applications and containers that run in the host pid and network namespaces, or applications that are present in the allow `bpflock_cgroupmap`.
+  - `restricted`: direct and indirect access to a running kernel image is denied for all processes and containers.
  
- * Blocked access:
+* Blocked access:
 
-   Under baseline profile, the kernel image lock-down will be enforced for all processes that are not in the initial pid
-   namespace, and [kernel features](https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#1-kernel-image-lock-down) to modify the running kernel are blocked. Special access exceptions can be set to allow some specific operations.
+  Under baseline profile, the kernel image lock-down will be enforced for all processes that are not in the initial pid and network namespaces, and [kernel features](https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#1-kernel-image-lock-down) to modify the running kernel are blocked. Special access exceptions can be set to allow some specific use cases.
 
- * Baseline profile access exceptions:
+* Baseline profile access exceptions:
    
-   A coma-separated list of allowed features for the rest of all processes that are not in the initial pid namespace can be specified:
-   - `unsigned_module` : allow unsigned module loading.
-   - `unsafe_module_parameters` : allow module parameters that directly specify hardware
-         parameters to drivers 
-   - `dev_mem` : access to /dev/{mem,kmem,port} is allowed.
-   - `kexec` : kexec of unsigned images is allowed.
-   - `hibernation` : hibernation is allowed.
-   - `pci_access` : allow direct PCI BAR access.
-   - `ioport` : raw io port access is allowed.
-   - `msr` : raw msr access is allowed.
-   - `mmiotrace` : tracing memory mapped I/O is allowed.
-   - `debugfs` : debugfs is allowed.
-   - `xmon_rw` : xmon write access is allowed.
-   - `bpf_write` : use of bpf write to user RAM is allowed.
-   - `btf_load` : loading BPF Type Format (BTF) metadata into the kernel is allowed.
+  A coma-separated list of allowed features for the rest of all processes that are not in the initial pid namespace can be specified:
+  - `unsigned_module` : allow unsigned module loading.
+  - `unsafe_module_parameters` : allow module parameters that directly specify hardware
+        parameters to drivers 
+  - `dev_mem` : access to /dev/{mem,kmem,port} is allowed.
+  - `kexec` : kexec of unsigned images is allowed.
+  - `hibernation` : hibernation is allowed.
+  - `pci_access` : allow direct PCI BAR access.
+  - `ioport` : raw io port access is allowed.
+  - `msr` : raw msr access is allowed.
+  - `mmiotrace` : tracing memory mapped I/O is allowed.
+  - `debugfs` : debugfs is allowed.
+  - `xmon_rw` : xmon write access is allowed.
+  - `bpf_write` : use of bpf write to user RAM is allowed.
 
 
 `kimglock` examples:
@@ -121,26 +121,28 @@ If `/sys` is read-only and can not be remounted, then `kimglock` is pinned and c
   - Automatic loading of kernel modules. This will block users (or attackers) from auto-loading modules. Unprivileged code will not be able to load "vulnerable" modules in this case. 
   - Unsafe usage of module parameters.
 
+After pinning the corresponding bpf program, kmodlock will exit.
+
 **Under development:**
-`kmodlock` can also be used to ensure that all kernel modules and firmware that are loaded originate from the same root filesystem. Extra flags can be passed to ensure that such filesystem is: mounted read-only or either backed by a read-only device such as dm-verity, if not then the operation will be denied. Some of this functionality was inspired by [LoadPin LSM](https://www.kernel.org/doc/html/latest/admin-guide/LSM/LoadPin.html).
+kmodlock can also be used to ensure that all kernel modules and firmware that are loaded originate from the same root filesystem. Extra flags can be passed to ensure that such filesystem is: mounted read-only or either backed by a read-only device such as dm-verity, if not then the operation will be denied. Some of this functionality was inspired by [LoadPin LSM](https://www.kernel.org/doc/html/latest/admin-guide/LSM/LoadPin.html).
 
 ### 2.2 Modules protection usage
 
-`kmodlock` supports the following options:
+kmodlock supports the following options:
 
 * `profile`: this is the global profile that takes one of the followings:
   - `allow|none|privileged` : they are the same, they define the least secure profile. In this profile access is logged and allowed for all processes. Useful to log security events.
-  - `baseline` : restrictive profile where access is denied for all processes, except applications and containers that run in the host pid and network namespaces, or applications that are present in the allow `bpflock_cgroupmap`.
+  - `baseline` : restrictive profile where access is denied for all processes, except privileged applications and containers that run in the host pid and network namespaces, or applications that are present in the allow `bpflock_cgroupmap`.
   - `restricted` : heavily restricted profile where access is denied for all processes.
 
- * In case the profile is `allow` or `baseline`, a comma-separated list of operations to block can be specified:
-   - `load_module`: block module loading.
-   - `autoload_module`: block automatic module loading.
-   - `unsigned_module` : block unsigned module loading.
-   - `unsafe_module_parameters` : block module parameters that directly specify hardware.
-         parameters to drivers.
+* In case the profile is `allow` or `baseline`, a comma-separated list of operations to block can be specified:
+  - `load_module`: block module loading.
+  - `autoload_module`: block automatic module loading.
+  - `unsigned_module` : block unsigned module loading.
+  - `unsafe_module_parameters` : block module parameters that directly specify hardware.
+        parameters to drivers.
 
-   If the list of operations to block is not set, then all operations are allowed according to the permission model.
+  If the list of operations to block is not set, then all operations are allowed according to the permission model.
 
 Examples:
 
@@ -186,7 +188,7 @@ If `/sys` is read-only and can not be remounted, then bpflock kmodlock is pinned
 
 ### 3.1 Introduction
 
-`bpfrestrict` - implements access restrictions on [bpf syscall](https://man7.org/linux/man-pages/man2/bpf.2.html) by
+`bpfrestrict` - implements access restrictions on [bpf() syscall](https://man7.org/linux/man-pages/man2/bpf.2.html) by
 restricting or blocking access to:
 
   - Loading BPF programs.
@@ -194,7 +196,7 @@ restricting or blocking access to:
   - Loading BPF Type Format (BTF) metadata into the kernel.
   - BPF writes to user RAM.
 
-Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. The list of blocked operations can be expended in future.
+Make sure to execute this program last during boot and after all necessary bpf programs have been loaded. The list of blocked operations can be expended in future. After pinning the corresponding bpf program, bpfrestrict will exit.
 
 ### 3.2 bpfrestrict usage
 
@@ -205,14 +207,14 @@ It supports following options:
   - `baseline` : restrictive profile where access is denied for all processes, except applications and containers that run in the host pid and network namespaces, or applications that are present in the allow `bpflock_cgroupmap`.
   - `restricted` : heavily restricted profile where access is denied for all processes.
 
- * Comma-separated list of commands to block in case profile is `allow` or `baseline`:
-    - `bpf_write`: block `bpf_probe_write_user()` that is used to write to user space memory.
-    - `btf_load`: block loading BPF Type Format (BTF) metadata into the kernel.
-    - `map_create`: block creation of bpf maps.
-    - `prog_load`: block loading bpf programs.
-    - All other commands are allowed by default.
+* Comma-separated list of commands to block in case profile is `allow` or `baseline`:
+  - `bpf_write`: block `bpf_probe_write_user()` that is used to write to user space memory.
+  - `btf_load`: block loading BPF Type Format (BTF) metadata into the kernel.
+  - `map_create`: block creation of bpf maps.
+  - `prog_load`: block loading bpf programs.
+  - All other commands are allowed by default.
     
-    If the list of commands to block is not set, then all bpf commands are allowed.
+  If the list of commands to block is not set, then all bpf commands are allowed.
 
 Examples:
 
