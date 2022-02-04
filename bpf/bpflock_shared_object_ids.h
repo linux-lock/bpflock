@@ -15,8 +15,13 @@ enum bpflock_object_id {
         BPFRESTRICT_ID,
         KMODLOCK_ID,
         KIMGLOCK_ID,
-        FILELESS_ID,
+        FILELESSLOCK_ID,
 };
+
+/*
+ * Event Ids should contain only SYSCALLS, Used LSMs
+ * other probes that do not change in the kernel
+ */
 
 enum bpflock_event_id {
         /*
@@ -29,18 +34,26 @@ enum bpflock_event_id {
         /* Keep names descriptive */
 
         /* Syscalls start from 10000 */
-        SYSCALL_EXECVE_ID               = 10000,
+        SYSCALL_EXECVE_ID               = 1000,
         SYSCALL_EXECVEAT_ID,
-        SYSCALL_BPF_ID,
+
+        /* BPF */
+        SYSCALL_BPF_ID                  = 1100,
 
         /* LSM IDs start from 20000 */
 
         /* LSM BPF CONTEXT */
-        LSM_BPF_ID                      = 20000,
+        LSM_BPF_ID                      = 10000,
         LSM_BPF_MAP_ID,
 
         /* LSM LOCKED_DOWN CONTEXT */
-        LSM_LOCKED_DOWN_ID              = 20100,
+        LSM_LOCKED_DOWN_ID              = 10100,
+
+        LSM_KERNEL_MODULE_REQUEST_ID    = 10200,
+        LSM_KERNEL_READ_FILE_ID,
+        LSM_KERNEL_LOAD_DATA_ID,
+
+        LSM_BPRM_CREDS_FROM_FILE_ID     = 10300,
 };
 
 #define event_id_to_str(id)         #id
