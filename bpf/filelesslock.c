@@ -5,7 +5,7 @@
  */
 
 /*
- * Implements Filess execution restrictions.
+ * Implements Fileless execution restrictions.
  */
 
 #include <argp.h>

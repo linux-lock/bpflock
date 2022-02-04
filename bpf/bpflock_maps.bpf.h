@@ -16,7 +16,6 @@
  * TODO these should be converted to LRU maps or
  * add dynamic tracking
  */
-
 /*
  * Per cgroup container profile must be pinned by name
  * Able to contain all profiles: privileged, baseline, restricted.
@@ -57,6 +56,10 @@ struct {
         __uint(pinning, LIBBPF_PIN_BY_NAME);
 } bpflock_netnsmap SEC(".maps");
 
+/*
+ * TODO these should be converted to LRU maps or
+ * add dynamic tracking
+ */
 /* Per mntns profile: usage is restricted and it will be removed */
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
