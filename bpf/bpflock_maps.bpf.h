@@ -52,7 +52,7 @@ struct {
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
         __uint(max_entries, 1);
-        __type(key, unsigned int);
+        __type(key, uint64_t);
         __type(value, struct netns_map_entry);
         __uint(pinning, LIBBPF_PIN_BY_NAME);
 } bpflock_netnsmap SEC(".maps");
