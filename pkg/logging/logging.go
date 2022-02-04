@@ -178,7 +178,7 @@ func GetFormatter(format LogFormat) logrus.Formatter {
 	switch format {
 	case LogFormatText:
 		return &logrus.TextFormatter{
-			DisableColors:    true,
+			DisableColors: true,
 		}
 	}
 
