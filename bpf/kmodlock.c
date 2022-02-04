@@ -152,13 +152,6 @@ static int setup_km_env_map(struct kmodlock_bpf *skel, int *fd)
                 return f;
         }
 
-        err = pin_init_task_ns(f);
-        if (err < 0) {
-                fprintf(stderr, "%s: error: failed to pin init task namespace: %d\n",
-                        LOG_BPFLOCK, err);
-                return err;
-        }
-
         *fd = f;
 
         return err;

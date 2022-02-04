@@ -111,8 +111,15 @@ const (
 	KmodLockProfile = "kmodlock-profile"
 	KmodLockBlock   = "kmodlock-block"
 
+	// kimglock
 	KimgLockProfile = "kimglock-profile"
 	KimgLockAllow   = "kimglock-allow"
+
+	// filelesslock
+	FilelessLockProfile = "filelesslock-profile"
+
+	// execsnoop
+	ExecSnoopTarget = "exec-snoop"
 
 	bpflockEnvPrefix = "BPFLOCK_"
 )
@@ -235,7 +242,8 @@ type DaemonConfig struct {
 	PProfPort           int
 	PrometheusServeAddr string
 
-	BpfMeta *models.BpfMeta
+	ExecSnoopTarget string
+	BpfMeta         *models.BpfMeta
 }
 
 var (
@@ -252,6 +260,11 @@ var (
 
 	BpflockBpfProgs = map[string]models.BpfProgram{
 		// For now lets keep bpf programs sorted here
+		components.FilelessLock: {
+			Name:        "filelesslock",
+			Priority:    1,
+			Description: "Restrict fileless binary execution",
+		},
 		// kernel features restrictions priority starts from 50
 		components.KimgLock: {
 			Name:        "kimglock",
@@ -364,12 +377,25 @@ func (c *DaemonConfig) isBpfMetaOk() error {
 	return c.areBpfProgramsOk()
 }
 
+func (c *DaemonConfig) isExecSnoopConfOk() error {
+	switch c.ExecSnoopTarget {
+	case defaults.ExecSnoopAll, defaults.ExecSnoopByFilter, "none", "":
+		return nil
+	}
+
+	return fmt.Errorf("invalid '%q' value", ExecSnoopTarget)
+}
+
 // Validate validates the daemon configuration
 func (c *DaemonConfig) Validate() error {
-
-	err := c.isBpfMetaOk()
+	err := c.isExecSnoopConfOk()
 	if err != nil {
-		return fmt.Errorf("invalid BpfMeta: %v", err)
+		return fmt.Errorf("validate configuration: %v", err)
+	}
+
+	err = c.isBpfMetaOk()
+	if err != nil {
+		return fmt.Errorf("validate configuration: failed BpfMeta: %v", err)
 	}
 
 	return nil
@@ -607,6 +633,7 @@ func (c *DaemonConfig) Populate() {
 	c.EnableIPv4 = viper.GetBool(EnableIPv4Name)
 	c.EnableIPv6 = viper.GetBool(EnableIPv6Name)
 	c.RmBpfOnExit = viper.GetBool(RmBpfOnExit)
+	c.ExecSnoopTarget = viper.GetString(ExecSnoopTarget)
 
 	bpfrargs := ""
 	value := viper.GetString(BpfRestrictProfile)
@@ -638,6 +665,12 @@ func (c *DaemonConfig) Populate() {
 		}
 	}
 
+	filelessargs := ""
+	value = viper.GetString(FilelessLockProfile)
+	if value != "" {
+		filelessargs = fmt.Sprintf("--profile=%s", value)
+	}
+
 	for _, p := range BpfM.Bpfspec.Programs {
 		switch p.Name {
 		case components.KimgLock:
@@ -651,6 +684,10 @@ func (c *DaemonConfig) Populate() {
 		case components.BpfRestrict:
 			if bpfrargs != "" {
 				p.Args = strings.Fields(bpfrargs)
+			}
+		case components.FilelessLock:
+			if filelessargs != "" {
+				p.Args = strings.Fields(filelessargs)
 			}
 		}
 	}

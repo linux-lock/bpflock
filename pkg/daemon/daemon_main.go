@@ -198,6 +198,12 @@ func initializeFlags() {
 	flags.String(option.KimgLockAllow, "", "kimglock allow operations")
 	option.BindEnv(option.KimgLockAllow)
 
+	flags.String(option.FilelessLockProfile, "", "filelesslock bpf security profile to restrict fileless binary execution")
+	option.BindEnv(option.FilelessLockProfile)
+
+	flags.String(option.ExecSnoopTarget, "none", "Run execsnoop to trace process execution")
+	option.BindEnv(option.ExecSnoopTarget)
+
 	viper.BindPFlags(flags)
 }
 
@@ -317,6 +323,8 @@ func runDaemon() {
 	d.startStatusCollector()
 
 	d.startAgentHealthHTTPService()
+
+	d.startBpfReadEvents()
 
 	srv := restapi.NewServer(d.instantiateAPI())
 	srv.EnabledListeners = []string{"unix"}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright (C) 2021 Djalal Harouni
+ * Copyright (C) 2022 Djalal Harouni
  */
 
 #include <vmlinux.h>
@@ -9,124 +9,119 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include <errno.h>
-#include "bpflock_bpf_defs.h"
-#include "bpflock_shared_defs.h"
+
+#include "bpflock_defs.bpf.h"
 #include "bpfrestrict.h"
 
-#define DBPF_PROGRAMS 2
-#define DBPF_WRITE_USER 16
+/* Count current bpf programs here */
+#define BPF_PROGRAMS_COUNT 2
+
+/* Lockdown BPF write user */
+#define LOCKDOWN_BPF_WRITE_USER 16
 
 struct {
+        __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+        __uint(max_entries, 1);
+        __type(key, uint32_t);
+        __type(value, struct process_event);
+} bpfrestrict_event_storage SEC(".maps");
+
+/*
+ * map that holds the profile for bpfrestrict and allowed/blocked
+ * operations + filter and other passed arguments.
+ */
+struct {
         __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 8);
+        __uint(max_entries, 5);
         __type(key, uint32_t);
         __type(value, uint32_t);
-} bpfrestrict_map SEC(".maps");
-
-struct {
-        __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 8);
-        __type(key, uint32_t);
-        __type(value, struct bl_stat);
-} bpfrestrict_ns_map SEC(".maps");
-
-struct {
-        __uint(type, BPF_MAP_TYPE_RINGBUF);
-        __uint(max_entries, 1 << 24);
-} bpflock_events SEC(".maps");
+} bpfrestrict_args_map SEC(".maps");
 
 int pinned_bpf = 0;
+const volatile bool debug = false;
 
-static __always_inline bool is_init_pid_ns(void)
+/* readonly test var to enforce profile and avoid bpf maps... */
+const volatile enum bpflock_profile global_profile = 0;
+
+static __always_inline bool is_task_allowed(struct process_event *event,
+                                            int cgrp_incestor_level)
 {
-        struct task_struct *current;
-        unsigned long id = 0;
+        uint32_t *filter;
+        uint32_t k = BPFRESTRICT_MAPS_FILTER;
 
-        current = (struct task_struct *)bpf_get_current_task();
-        id = BPF_CORE_READ(current, nsproxy, pid_ns_for_children, ns.inum);
+        /* By default pass the corresponding filter */
+        if (is_pidns_allowed((struct bpf_map *)&bpflock_pidnsmap,
+                             BPFLOCK_P_FILTER_PIDNS, event))
+                return true;
 
-        return id == (unsigned long)PROC_PID_INIT_INO;
-}
+        if (is_netns_allowed((struct bpf_map *)&bpflock_netnsmap,
+                             BPFLOCK_P_FILTER_NETNS, event))
+                return true;
 
-static __always_inline bool is_init_mnt_ns(void)
-{
-        struct task_struct *current;
-        struct bl_stat *st;
-        unsigned long ino = 0;
-        uint32_t k = 1;
+        filter = bpf_map_lookup_elem(&bpfrestrict_args_map, &k);
+        /* If fitler then match the cgroupmap */
+        if (filter && *filter > 0) {
+                if (is_cgroup_allowed((struct bpf_map *)&bpflock_cgroupmap,
+                                      *filter, event, cgrp_incestor_level))
+                        return true;
+        }
 
-        /*
-         * If we fail to read stat namespaces then just assume
-         * not same namespaces.
-         */
-        st = bpf_map_lookup_elem(&bpfrestrict_ns_map, &k);
-        if (!st)
-                return false;
-
-        current = (struct task_struct *)bpf_get_current_task();
-        ino = BPF_CORE_READ(current, nsproxy, mnt_ns, ns.inum);
-
-        /*
-         * For now lets compare only ino which is the ns.inum
-         * on proc.
-         */
-        return ino == (unsigned long)PROC_DYNAMIC_FIRST && ino == st->st_ino;
-}
-
-static __always_inline int report(const char *op, const int ret, int reason)
-{
-        uint64_t id;
-        static struct event info;
-
-        id = bpf_get_current_pid_tgid();
-        info.pid = id >> 32;
-
-        bpf_get_current_comm(&info.comm, sizeof(info.comm));
-
-        bpf_printk("bpflock bpf=bpfrestrict pid=%lu comm=%s event=%s\n",
-                   info.pid, info.comm, op);
-        bpf_printk("bpflock bpf=bpfrestrict pid=%lu event=%s status=%s\n",
-                   info.pid, op, get_reason_str(ret, reason));
-
-        return ret;
+        return false;
 }
 
 SEC("lsm/bpf")
-int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
+int BPF_PROG(bpfrestrict_bpf, int cmd, union bpf_attr *attr,
              unsigned int size, int ret)
 {
         uint32_t *val, blocked = 0, op_blocked = 0;
-        uint32_t k = BPFLOCK_BPF_PERM;
+        uint32_t k = BPFRESTRICT_PROFILE;
+        struct process_event *event;
+        uint32_t zero = 0;
+        int reason = 0;
 
         if (ret != 0)
                 return ret;
 
-        if (pinned_bpf == DBPF_PROGRAMS) {
-                val = bpf_map_lookup_elem(&bpfrestrict_map, &k);
+        if (pinned_bpf == BPF_PROGRAMS_COUNT) {
+                val = bpf_map_lookup_elem(&bpfrestrict_args_map, &k);
                 if (!val)
                         return ret;
 
+                event = bpf_map_lookup_elem(&bpfrestrict_event_storage, &zero);
+                /* Do not fail as we have to take decisions */
+                if (event)
+                        collect_event_info(event, BPF_PROG_TYPE_LSM, BPF_LSM_MAC,
+                                           BPFRESTRICT_ID, LSM_BPF_ID);
+
+                /* Check the global profile */
                 blocked = *val;
                 if (blocked == BPFLOCK_P_RESTRICTED)
-                        return report("bpf()", -EPERM, reason_restricted);
+                        return report(event, LSM_BPF_ID, -EPERM, reason_restricted, debug);
 
-                if (blocked == BPFLOCK_P_ALLOW)
-                        return report("bpf()", 0, reason_allow);
-
-                /* If baseline and not in init pid namespace deny access */
-                if (blocked == BPFLOCK_P_BASELINE && !is_init_pid_ns())
-                        return report("bpf() from non init pid namespace", -EPERM, reason_baseline);
-
-                k = BPFLOCK_BPF_OP;
+                if (blocked == BPFLOCK_P_ALLOW) {
+                        /* Save reason and check later if operation is blocked */
+                        reason = reason_allow;
+                        ret = 0;
+                } else if (blocked == BPFLOCK_P_BASELINE) {
+                        /* If baseline then check the map filters */
+                        if (!is_task_allowed(event, 0))
+                                return report(event, LSM_BPF_ID, -EPERM, reason_baseline, debug);
+                        reason = reason_baseline;
+                        ret = 0;
+                } else {
+                        /* Guard */
+                        return report(event, LSM_BPF_ID, -EPERM, reason_restricted, debug);
+                }
 
                 /*
                  * Check if a list of blocked operations was set,
                  * if not then allow BPF commands.
                  * This covers both restrict and allow permissions.
                  */
-                val = bpf_map_lookup_elem(&bpfrestrict_map, &k);
+                k = BPFRESTRICT_BLOCK_OP;
+                val = bpf_map_lookup_elem(&bpfrestrict_args_map, &k);
                 if (!val)
-                        return report("bpf()", 0, reason_baseline_allowed);
+                        return report(event, LSM_BPF_ID, ret, reason, debug);
 
                 blocked = *val;
 
@@ -146,9 +141,10 @@ int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
                 }
 
                 if (op_blocked)
-                        return report("bpf() blocked cmd", -EPERM, reason_baseline_restricted);
+                        return report(event, LSM_BPF_ID, -EPERM,
+                                       reason_baseline_restricted, debug);
 
-                return report("bpf() allowed cmd", 0, reason_baseline);
+                return report(event, LSM_BPF_ID, ret, reason, debug);
 
         } else if (cmd == BPF_OBJ_PIN) {
                 pinned_bpf += 1;
@@ -158,44 +154,59 @@ int BPF_PROG(bpfrestrict, int cmd, union bpf_attr *attr,
 }
 
 SEC("lsm/locked_down")
-int BPF_PROG(bpfrestrict_bpf_write, enum lockdown_reason what, int ret)
+int BPF_PROG(bpfrestrict_locked_down, enum lockdown_reason what, int ret)
 {
         uint32_t *val, blocked = 0, reason = 0;
-        uint32_t k = BPFLOCK_BPF_PERM;
+        struct process_event *event;
+        uint32_t k = BPFRESTRICT_PROFILE;
+        uint32_t zero = 0;
 
         if (ret != 0 )
                 return ret;
 
-        if (what != DBPF_WRITE_USER || pinned_bpf != DBPF_PROGRAMS)
+        if (what != LOCKDOWN_BPF_WRITE_USER || pinned_bpf != BPF_PROGRAMS_COUNT)
                 return ret;
 
-        val = bpf_map_lookup_elem(&bpfrestrict_map, &k);
+        val = bpf_map_lookup_elem(&bpfrestrict_args_map, &k);
         if (!val)
                 return ret;
+
+        event = bpf_map_lookup_elem(&bpfrestrict_event_storage, &zero);
+        /* Do not fail as we have to take decisions */
+        if (event)
+                collect_event_info(event, BPF_PROG_TYPE_LSM, BPF_LSM_MAC,
+                                   BPFRESTRICT_ID, LSM_LOCKED_DOWN_ID);
 
         blocked = *val;
         if (blocked == BPFLOCK_P_RESTRICTED)
-                return report("bpf() write user", -EPERM, reason_restricted);
+                return report(event, LSM_LOCKED_DOWN_ID, -EPERM, reason_restricted, debug);
 
-        if (blocked == BPFLOCK_P_ALLOW)
-                return report("bpf() write user", 0, reason_allow);
+        if (blocked == BPFLOCK_P_ALLOW) {
+                reason = reason_allow;
+                ret = 0;
+        } else if (blocked == BPFLOCK_P_BASELINE) {
+                if (!is_task_allowed(event, 0))
+                        return report(event, LSM_LOCKED_DOWN_ID, -EPERM, reason_baseline, debug);
+                
+                reason = reason_baseline;
+                ret = 0;
+        } else {
+                /* Guard */
+                return report(event, LSM_LOCKED_DOWN_ID, -EPERM, reason_restricted, debug);
+        }
 
-        /* If restrict and not in init pid namespace, then deny access */
-        if (blocked == BPFLOCK_P_BASELINE && !is_init_pid_ns())
-                return report("bpf() write user from non init pid namespace", -EPERM, reason_baseline);
-
-        k = BPFLOCK_BPF_OP;
-
-        /* If not block access is not found then allow */
-        val = bpf_map_lookup_elem(&bpfrestrict_map, &k);
+        k = BPFRESTRICT_BLOCK_OP;
+        /* If block access is not found then:  allow */
+        val = bpf_map_lookup_elem(&bpfrestrict_args_map, &k);
         if (!val)
-                return report("bpf() write user", 0, reason_baseline);
+                return report(event, LSM_LOCKED_DOWN_ID, ret, reason, debug);
 
+        /* If block BPF Write then fail */
         blocked = *val;
         if (blocked & BPFLOCK_BPF_WRITE)
-                return report("bpf() write user", -EPERM, reason_baseline_restricted);
+                return report(event, LSM_LOCKED_DOWN_ID, -EPERM, reason_baseline_restricted, debug);
 
-        return report("bpf() write user", 0, reason_baseline_allowed);
+        return report(event, LSM_LOCKED_DOWN_ID, ret, reason, debug);
 }
 
 static const char _license[] SEC("license") = "GPL";

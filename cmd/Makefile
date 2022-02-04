@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2021 Djalal Harouni
+# Copyright 2022 Djalal Harouni
 # Copyright 2017-2020 Authors of Cilium
 
 ifndef GO_BUILD

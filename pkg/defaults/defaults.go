@@ -96,6 +96,16 @@ const (
 	// EnableIPv6 is the default value for IPv6 enablement
 	EnableIPv6 = true
 
+	ExecSnoop = "none"
+)
+
+const (
+	BpflockPAllow = iota + 1
+	BpflockPBaseline
+	BpflockPRestricted
+)
+
+const (
 	// BpfProfileAllow is the "allow" "none" or "privileged" profile
 	BpfProfileAllow      = "allow"
 	BpfProfileNone       = "none"
@@ -106,4 +116,7 @@ const (
 
 	// BpfProfileRestricted is deny some privileged operations
 	BpfProfileRestricted = "restricted"
+
+	ExecSnoopByFilter = "filter"
+	ExecSnoopAll      = "all"
 )

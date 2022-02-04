@@ -59,6 +59,7 @@ LLVM_VERSION="12"
 
 # BPFTOOL
 BPFTOOL ?= $(abspath ./tools/$(ARCH)/bpftool)
+BPF2GO ?= $(abspath ./tools/$(ARCH)/bpf2go)
 
 # Go environment
 GO ?= $(shell command -v go 2> /dev/null)

@@ -22,3 +22,9 @@ bpfspec:
       command: bpfrestrict
       args:
         - --profile=allow
+    - name: filelesslock
+      description: "Restrict fileless binary execution from memory"
+      doc: https://github.com/linux-lock/bpflock/tree/main/docs/process-protections.md#fileless-memory-execution
+      command: filelesslock
+      args:
+        - --profile=allow

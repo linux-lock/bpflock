@@ -8,7 +8,6 @@
 #define _GNU_SOURCE
 #endif
 
-#include <bpf/bpf.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -20,7 +19,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "bpflock_bpf_defs.h"
+#include <bpf/libbpf.h>
+#include <bpf/bpf.h>
+#include "bpflock_shared_defs.h"
 #include "bpflock_utils.h"
 
 size_t strv_length(char * const *l)
@@ -73,30 +74,35 @@ int is_lsmbpf_supported()
         fd = open(LSM_BPF_PATH, O_RDONLY);
         if (fd < 0) {
                 err = -errno;
-                fprintf(stderr, "%s: error opening /sys/kernel/security/lsm ('%s') - "
+                fprintf(stderr, "%s: error opening '/sys/kernel/security/lsm' ('%s') - "
                        "securityfs not mounted?\n",
                        LOG_BPFLOCK, strerror(-err));
                 return err;
         }
 
-        len = read(fd, buf, sizeof(buf));
-        if (len == -1) {
+        memset(buf, 0, sizeof(buf));
+        len = read(fd, buf, sizeof(buf) - 1);
+        if (len < 0) {
                 err = -errno;
-                fprintf(stderr, "%s: error reading /sys/kernel/security/lsm: %s\n",
+                fprintf(stderr, "%s: error reading '/sys/kernel/security/lsm': %s\n",
                        LOG_BPFLOCK, strerror(-err));
-                close(fd);
-                return err;
+                goto out;
+        } else if (len < 3) {
+                err = -EINVAL;
+                fprintf(stderr, "%s: failed to read '/sys/kernel/security/lsm' invalid data.\n",
+                       LOG_BPFLOCK);
+                goto out;
         }
 
-        close(fd);
-        buf[sizeof(buf)-1] = '\0';
         c = strstr(buf, "bpf");
         if (!c) {
                 fprintf(stderr, "%s: error BPF LSM not loaded - make sure CONFIG_LSM or lsm kernel "
                        "param includes 'bpf'!\n", LOG_BPFLOCK);
-                return -EINVAL;
+                err = -EINVAL;
         }
 
+out:
+        close(fd);
         return err;
 }
 
@@ -189,20 +195,197 @@ int stat_sb_root(struct stat *st)
         return 0;
 }
 
-int pin_init_task_ns(int fd)
+static void sanitize_pin_path(char *s)
 {
-        struct stat id;
-        struct bl_stat bst;
-        uint32_t k = BPFLOCK_NS_KEY;
-        int ret;
+        /* bpffs disallows periods in path names */
+        while (*s) {
+                if (*s == '.')
+                        *s = '_';
+                s++;
+        }
+}
 
-        ret = read_task_mnt_id("/proc/1/ns/mnt", &id);
-        if (ret < 0)
-                return ret;
+int push_host_init_ns(struct bpf_map *pidnsmap)
+{
+        int fd;
+        uint64_t key;
+        static struct pidns_map_entry init_pidns_entry = {
+                BPFLOCK_P_ALLOW,
+        };
 
-        bst.st_dev = id.st_dev;
-        bst.st_ino = id.st_ino;
-        bpf_map_update_elem(fd, &k, &bst, BPF_ANY);
+        fd = bpf_map__fd(pidnsmap);
+        if (fd < 0)
+                return fd;
+
+        key = INIT_PIDNS_ID_INO;
+        bpf_map_update_elem(fd, &key, &init_pidns_entry, BPF_NOEXIST);
+
+        return 0;
+}
+
+int bpflock_bpf_map__set_pin_path(struct bpf_map *map, const char *prefix)
+{
+        int len, err;
+        char path[PATH_MAX];
+
+        if (!prefix)
+                return -EINVAL;
+
+        if (strlen(prefix) > NAME_MAX)
+                return -ENAMETOOLONG;
+
+        len = snprintf(path, sizeof(path), "%s/%s", prefix, bpf_map__name(map));
+        if (len < 0)
+                return -EINVAL;
+        else if (len >= PATH_MAX)
+                return -ENAMETOOLONG;
+
+        sanitize_pin_path(path);
+        err = bpf_map__set_pin_path(map, path);
+        if (err)
+                return err;
+
+        return 0;
+}
+
+/* Assign an fd of an already loaded map so we can re-use it */
+int bpf_assign_fd_to_map(struct bpf_map *map)
+{
+        int err = 0, fd;
+        const char *path;
+
+        if (!map)
+                return -EINVAL;
+
+        path = bpf_map__pin_path(map);
+        if (!path)
+                return -EINVAL;
+
+        /* Lets use directly obj get */
+        fd = bpf_obj_get(path);
+        if (fd > 0) {
+                err = bpf_map__reuse_fd(map, fd);
+                close(fd);
+        }
+
+        return err;
+}
+
+int bpf_reuse_shared_maps(struct bpf_object *obj)
+{
+        struct bpf_map *map;
+        int err;
+
+        if (!obj)
+                return -EINVAL;
+
+        map = bpf_object__find_map_by_name(obj, SHARED_PIDNSMAP);
+        err = libbpf_get_error(map);
+        if (err)
+                return err;
+
+        err = bpf_assign_fd_to_map(map);
+        if (err < 0)
+                return err;
+
+        map = bpf_object__find_map_by_name(obj, SHARED_CGROUPMAP);
+        err = libbpf_get_error(map);
+        if (err)
+                return err;
+
+        err = bpf_assign_fd_to_map(map);
+        if (err < 0)
+                return err;
+
+        map = bpf_object__find_map_by_name(obj, SHARED_NETNSMAP);
+        err = libbpf_get_error(map);
+        if (err)
+                return err;
+
+        err = bpf_assign_fd_to_map(map);
+        if (err < 0)
+                return err;
+
+        map = bpf_object__find_map_by_name(obj, SHARED_MNTNSMAP);
+        err = libbpf_get_error(map);
+        if (err)
+                return err;
+
+        err = bpf_assign_fd_to_map(map);
+        if (err < 0)
+                return err;
+
+        map = bpf_object__find_map_by_name(obj, SHARED_EVENTS);
+        err = libbpf_get_error(map);
+        if (err)
+                return err;
+
+        err = bpf_assign_fd_to_map(map);
+        if (err < 0)
+                return err;
+
+        return 0;
+}
+
+int bpflock_bpf_object__pin_maps(struct bpf_object *obj, const char *path)
+{
+        struct bpf_map *map;
+        int err, pinned = 0;
+
+        if (!obj)
+                return -ENOENT;
+
+        bpf_object__for_each_map(map, obj) {
+                const char *pin_path = bpf_map__pin_path(map);
+
+                if (path && !pin_path) {
+                        err = bpflock_bpf_map__set_pin_path(map, path);
+                        if (err < 0)
+                                goto err_unpin_maps;
+                }
+                pin_path = bpf_map__pin_path(map);
+                if (!pin_path)
+                        continue;
+
+                err = bpf_map__pin(map, pin_path);
+                if (err < 0)
+                        goto err_unpin_maps;
+
+                /* We must at least pin some specific maps */
+                pinned++;
+        }
+
+        if (!pinned) {
+                err = -ENOENT;
+                goto err_unpin_maps;
+        }
+
+        return 0;
+
+err_unpin_maps:
+        while ((map = bpf_object__prev_map(obj, map))) {
+                if (bpf_map__pin_path(map) == NULL)
+                        continue;
+
+                bpf_map__unpin(map, NULL);
+        }
+
+        return err;
+}
+
+int bpflock_bpf_object__pin(struct bpf_object *obj, const char *path)
+{
+        int err;
+
+        err = bpflock_bpf_object__pin_maps(obj, path);
+        if (err)
+                return err;
+
+        err = bpf_object__pin_programs(obj, path);
+        if (err) {
+                bpf_object__unpin_maps(obj, path);
+                return err;
+        }
 
         return 0;
 }

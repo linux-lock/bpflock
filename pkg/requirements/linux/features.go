@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	minKernelVer  = "5.15.0"
+	minKernelVer  = "5.13.0"
 	lsmConfigFile = "/sys/kernel/security/lsm"
 )
 

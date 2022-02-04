@@ -29,3 +29,7 @@ lib-dir: /var/lib/bpflock
 
 # -- Directory path to store runtime state
 state-dir: /var/run/bpflock
+
+# -- Execsnoop: trace process execve() calls
+# Supported values: none, filter, all
+exec-snoop: none
