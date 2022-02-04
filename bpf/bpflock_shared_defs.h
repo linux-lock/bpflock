@@ -103,8 +103,8 @@ struct process_event {
         int             prog_type;
         int             attach_type;
 
-        /* This field may change */
-        uint64_t        pevent_id;
+        int             program_id;
+        int             event_id;
 
         pid_t           tgid;
         pid_t           pid;
