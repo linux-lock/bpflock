@@ -9,10 +9,6 @@
 #ifndef __BPFLOCK_SHARED_DEFS_H
 #define __BPFLOCK_SHARED_DEFS_H
 
-#ifndef MAX_CPU
-#define MAX_CPU 512
-#endif
-
 #ifndef TASK_COMM_LEN
 #define TASK_COMM_LEN           16
 #endif
