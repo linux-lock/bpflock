@@ -48,7 +48,7 @@ bpflock offer multiple security protections that can be classified as:
 
 * [Process Protections](https://github.com/linux-lock/bpflock/tree/main/docs/process-protections.md)
   - [Fileless Memory Execution](https://github.com/linux-lock/bpflock/tree/main/docs/process-protections.md#fileless-memory-execution)
-  - [Namespaces protection](https://github.com/linux-lock/bpflock/tree/main/docs/process-protections.md#namespaces-protection)
+  - Namespaces protection
 
 * [Hardware Addition Attacks](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md)
   - [USB Additions Protection](https://github.com/linux-lock/bpflock/tree/main/docs/hardware-additions.md#1-usb-additions-protection)
@@ -92,7 +92,7 @@ For bpf security examples check [bpflock configuration examples](https://github.
 
 bpflock needs the following:
 
-* Linux kernel version >= 5.15 with the following configuration:
+* Linux kernel version >= 5.13 with the following configuration:
 
   ```code
   CONFIG_BPF_SYSCALL=y
@@ -104,6 +104,28 @@ bpflock needs the following:
   ```
 
 * Obviously a BTF enabled kernel.
+
+If you have `CONFIG_BPF_LSM=y` but when running boflock it fails with:
+```
+must have a kernel with 'CONFIG_BPF_LSM=y' 'CONFIG_LSM=\"...,bpf\"'"
+```
+
+Then do the following on Ubuntu to enable BPF LSM:
+
+  - Open the /etc/default/grub file as privileged of course.
+  - Append the following to the `GRUB_CMDLINE_LINUX` variable
+  ```
+  "lsm=lockdown,capability,yama,apparmor,bpf"
+  ```
+  or
+  ```
+  GRUB_CMDLINE_LINUX="lsm=lockdown,capability,yama,apparmor,bpf"
+  ```
+  - Then update grub config with:
+  ```bash
+  sudo update-grub2
+  ```
+  - Reboot into your kernel.
 
 
 ### 3.2 Docker deployment
@@ -122,6 +144,27 @@ sudo cat /sys/kernel/debug/tracing/trace_pipe
 ```
 Note: this is a temporary testing solution, bpflock will soon display all logs directly.
 
+#### Fileless Binary Execution
+
+To log and restict [fileless binary execution](https://github.com/linux-lock/bpflock/tree/main/docs/process-protections.md#fileless-memory-execution) run with:
+
+```bash
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+  -e "BPFLOCK_FILELESSLOCK_PROFILE=restricted" \
+  -v /sys/kernel/:/sys/kernel/ \
+  -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+```
+
+When running under `restricted` profile, the container logs will display:
+```
+time="2022-02-04T14:54:33Z" level=info msg="event=syscall_execve tgid=1833 pid=1833 ppid=1671 uid=1000 cgroupid=8821 comm=loader pcomm=bash filename=./loader retval=0" bpfprog=execsnoop subsys=bpf
+
+time="2022-02-04T14:54:33Z" level=info msg="event=lsm_bprm_creds_from_file tgid=1833 pid=1833 ppid=1671 uid=1000 cgroupid=8821 comm=loader pcomm=bash filename=memfd:memfd-test retval=-1 reason=denied (restricted)" bpfprog=filelesslock subsys=bpf
+
+time="2022-02-04T14:54:33Z" level=info msg="event=syscall_execve tgid=1833 pid=1833 ppid=0 uid=1000 cgroupid=8821 comm= pcomm= filename=/proc/self/fd/3 retval=-1" bpfprog=execsnoop subsys=bpf
+```
+
+Running under the `restricted` profile may break things, this is why the default profile is `allow`.
 
 #### Kernel Modules Protection
 
@@ -165,18 +208,56 @@ docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
   -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
 ```
 
-Example:
+Example running in a different pid and network namespaces and using [bpftool](https://github.com/libbpf/bpftool):
 ```bash
-$ sudo unshare -f -p bash
+$ sudo unshare -f -p -n bash
 # bpftool prog
 Error: can't get next program: Operation not permitted
 ```
 
+Example output of denied operation failed with -1 -EPERM:
 ```
-bpftool-399330  [002] d...1 427673.628475: bpf_trace_printk: bpflock bpf=bpfrestrict pid=399330 comm=bpftool event=bpf() from non init pid namespace
+time="2022-02-04T15:40:56Z" level=info msg="event=lsm_bpf tgid=2378 pid=2378 ppid=2364 uid=0 cgroupid=9458 comm=bpftool pcomm=bash filename= retval=-1 reason=baseline" bpfprog=bpfrestrict subsys=bpf
 
-bpftool-399330  [002] d...1 427673.628522: bpf_trace_printk: bpflock bpf=bpfrestrict pid=399330 event=bpf() from non init pid namespace status=denied (baseline)
+time="2022-02-04T15:40:56Z" level=info msg="event=lsm_bpf tgid=2378 pid=2378 ppid=2364 uid=0 cgroupid=9458 comm=bpftool pcomm=bash filename= retval=-1 reason=baseline" bpfprog=bpfrestrict subsys=bpf
 ```
+
+Running with the `-e "BPFLOCK_BPFRESTRICT_PROFILE=restricted"` profile will deny bpf for all:
+```
+time="2022-02-04T15:44:13Z" level=info msg="event=syscall_execve tgid=2500 pid=2500 ppid=2499 uid=0 cgroupid=9458 comm=bpftool pcomm=sudo filename=./tools/amd64/bpftool retval=0" bpfprog=execsnoop subsys=bpf
+
+time="2022-02-04T15:44:13Z" level=info msg="event=lsm_bpf tgid=2500 pid=2500 ppid=2499 uid=0 cgroupid=9458 comm=bpftool pcomm=sudo filename= retval=-1 reason=denied (restricted)" bpfprog=bpfrestrict subsys=bpf
+
+time="2022-02-04T15:44:13Z" level=info msg="event=lsm_bpf tgid=2500 pid=2500 ppid=2499 uid=0 cgroupid=9458 comm=bpftool pcomm=sudo filename= retval=-1 reason=denied (restricted)" bpfprog=bpfrestrict subsys=bpf
+```
+
+### 3.3 Configuration and Environment file
+
+Passing configuration as bind mounts can be achieved using the following command.
+
+Assuming [bpflock.yaml](https://github.com/linux-lock/bpflock/blob/main/deploy/configs/bpflock/bpflock.yaml) and [bpf.d profiles](https://github.com/linux-lock/bpflock/blob/main/deploy/configs/bpflock/bpf.d/) configs are in current directory inside `bpflock` directory, then we can just use:
+
+```bash
+ls bpflock/
+  bpf.d  bpflock.d  bpflock.yaml
+```
+```bash
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+  -v $(pwd)/bpflock/:/etc/bpflock \
+  -v /sys/kernel/:/sys/kernel/ \
+  -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+```
+
+Passing environment variables can be done also with files using `--env-file`. All parameters can be passed as environment variables using the `BPFLOCK_$VARIABLE_NAME=VALUE` schema.
+
+Example run with environment variables in a file:
+```bash
+docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+  --env-file bpflock.env.list \
+  -v /sys/kernel/:/sys/kernel/ \
+  -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+```
+
 
 ## 4. Documentation
 
@@ -196,7 +277,6 @@ make
 
 Bpf programs are built using libbpf. The docker image used is Ubuntu.
 
-
 If you want to only build the bpf programs directly without using docker, then on Ubuntu:
 ```bash
 sudo apt install -y pkg-config bison binutils-dev build-essential \
@@ -211,7 +291,6 @@ make bpf-programs
 ```
 
 In this case the generated programs will be inside the ./bpf/build/... directory.
-
 
 ## Credits
 
