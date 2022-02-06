@@ -279,6 +279,14 @@ static __always_inline void collect_event_result(struct process_event *event, co
         event->reason = reason;
 }
 
+static __always_inline void collect_event_operation(struct process_event *event, int operation)
+{
+        if (unlikely(!event))
+                return;
+
+        event->operation_id = operation;
+}
+
 static __always_inline void collect_event_info(struct process_event *event, int ptype,
                                                 int attach, int progid, int eventid)
 {
