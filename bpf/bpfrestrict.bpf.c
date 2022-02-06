@@ -89,9 +89,11 @@ int BPF_PROG(bpfrestrict_bpf, int cmd, union bpf_attr *attr,
 
                 event = bpf_map_lookup_elem(&bpfrestrict_event_storage, &zero);
                 /* Do not fail as we have to take decisions */
-                if (event)
+                if (event) {
                         collect_event_info(event, BPF_PROG_TYPE_LSM, BPF_LSM_MAC,
                                            BPFRESTRICT_ID, LSM_BPF_ID);
+                        collect_event_operation(event, cmd);
+                }
 
                 /* Check the global profile */
                 blocked = *val;
@@ -173,9 +175,11 @@ int BPF_PROG(bpfrestrict_locked_down, enum lockdown_reason what, int ret)
 
         event = bpf_map_lookup_elem(&bpfrestrict_event_storage, &zero);
         /* Do not fail as we have to take decisions */
-        if (event)
+        if (event) {
                 collect_event_info(event, BPF_PROG_TYPE_LSM, BPF_LSM_MAC,
                                    BPFRESTRICT_ID, LSM_LOCKED_DOWN_ID);
+                collect_event_operation(event, LOCKDOWN_BPF_WRITE_USER);
+        }
 
         blocked = *val;
         if (blocked == BPFLOCK_P_RESTRICTED)
