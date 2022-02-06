@@ -229,9 +229,9 @@ type DaemonConfig struct {
 	LogDriver    []string
 	LogOpt       map[string]string
 	// Logstash     bool
-	SocketPath   string
+	SocketPath string
 
-	Version             string
+	Version string
 	// PrometheusServeAddr string
 
 	ExecSnoopTarget string
