@@ -101,6 +101,7 @@ struct process_event {
 
         int             program_id;
         int             event_id;
+        int             operation_id;
 
         pid_t           tgid;
         pid_t           pid;
@@ -116,6 +117,8 @@ struct process_event {
         unsigned int    pidns_id;
         uint64_t        netns_id;
 
+        int             reserved1;
+
         /* Return value of the bpf program for LSM or of the kernel function */
         int             retval;
 
@@ -125,7 +128,7 @@ struct process_event {
         /* Reason why access was allowed : enum reason_value */
         int             reason;
 
-        int             reserved1;
+        int             reserved2;
 
         char            comm[TASK_COMM_LEN];
         char            pcomm[TASK_COMM_LEN];
