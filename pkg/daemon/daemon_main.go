@@ -188,8 +188,8 @@ func initializeFlags() {
 	flags.String(option.KimgLockProfile, "", "kimglock bpf security profile to restrict direct and indirect kernel image modification")
 	option.BindEnv(option.KimgLockProfile)
 
-	flags.String(option.KimgLockAllow, "", "kimglock allow operations")
-	option.BindEnv(option.KimgLockAllow)
+	flags.String(option.KimgLockBlock, "", "kimglock block operations")
+	option.BindEnv(option.KimgLockBlock)
 
 	flags.String(option.FilelessLockProfile, "", "filelesslock bpf security profile to restrict fileless binary execution")
 	option.BindEnv(option.FilelessLockProfile)
