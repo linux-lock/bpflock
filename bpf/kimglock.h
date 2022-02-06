@@ -7,15 +7,18 @@
 #ifndef __BPFLOCK_KIMGLOCK_H
 #define __BPFLOCK_KIMGLOCK_H
 
+#include "bpflock_shared_object_ids.h"
 #include "bpflock_security_class.h"
-#include "bpflock_bpf_defs.h"
 
 /* kimglock security class */
 
 #define LOG_KIMGLOCK "kimglock"
 
-#define BPFLOCK_KI_PERM        1
-#define BPFLOCK_KI_ALLOW_OP    256
+#define KIMGLOCK_PROFILE     1
+#define KIMGLOCK_ALLOW_OP    2
+#define KIMGLOCK_BLOCK_OP    3
+#define KIMGLOCK_MAPS_FILTER 4
+#define KIMGLOCK_DEBUG       5
 
 #define FOREACH_KIMGREASON(KIMGREASON) \
         KIMGREASON(LOCK_KIMG_NONE)      \
@@ -51,10 +54,6 @@ enum kimg_enum {
         FOREACH_KIMGREASON(GENERATE_ENUM)
 };
 
-enum kimg_enum_extra {
-        LOCK_KIMG_BTF_LOAD = 512,
-};
-
 struct bpflock_class_map kimg_security_map = {
         "kernel image lockdown",
         "/sys/fs/bpf/bpflock/kimglock",
@@ -62,15 +61,11 @@ struct bpflock_class_map kimg_security_map = {
         { 0 }
 };
 
-struct bpflock_class_prog_link bpf_prog_links[] = {
+struct bpflock_class_prog_link kimg_prog_links[] = {
         {
-                "bpflock_kimglock_lock",
-                "/sys/fs/bpf/bpflock/kimglock/kimglock_lockdown_link",
+                "kimglock_locked_down",
+                "/sys/fs/bpf/bpflock/kimglock/kimglock_locked_down_link",
         },
-        {
-                "bpflock_kimglock_bpf",
-                "/sys/fs/bpf/bpflock/kimglock/kimglock_bpf_link",
-        }
 };
 
 /* End of kimglock security class */
