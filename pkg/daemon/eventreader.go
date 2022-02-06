@@ -80,8 +80,13 @@ func logEvent(event *bpfevents.ProcessEvent, bpflog *logrus.Entry, str *strings.
 		fmt.Fprintf(str, " pcomm=%s", unix.ByteSliceToString(event.Pcomm[:]))
 	}
 
+	filename := ""
 	if len(event.FileName) > 0 {
-		fmt.Fprintf(str, " filename=%s", unix.ByteSliceToString(event.FileName[:]))
+		filename = unix.ByteSliceToString(event.FileName[:])
+	}
+
+	if len(filename) > 0 {
+		fmt.Fprintf(str, " filename=%s", filename)
 	}
 
 	fmt.Fprintf(str, " retval=%d", event.ReturnValue)
