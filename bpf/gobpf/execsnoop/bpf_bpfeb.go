@@ -54,8 +54,10 @@ type bpfSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfProgramSpecs struct {
-	TracepointSyscallsSysEnterExecve *ebpf.ProgramSpec `ebpf:"tracepoint__syscalls__sys_enter_execve"`
-	TracepointSyscallsSysExitExecve  *ebpf.ProgramSpec `ebpf:"tracepoint__syscalls__sys_exit_execve"`
+	TracepointSyscallsSysEnterExecve   *ebpf.ProgramSpec `ebpf:"tracepoint__syscalls__sys_enter_execve"`
+	TracepointSyscallsSysEnterExecveat *ebpf.ProgramSpec `ebpf:"tracepoint__syscalls__sys_enter_execveat"`
+	TracepointSyscallsSysExitExecve    *ebpf.ProgramSpec `ebpf:"tracepoint__syscalls__sys_exit_execve"`
+	TracepointSyscallsSysExitExecveat  *ebpf.ProgramSpec `ebpf:"tracepoint__syscalls__sys_exit_execveat"`
 }
 
 // bpfMapSpecs contains maps before they are loaded into the kernel.
@@ -115,14 +117,18 @@ func (m *bpfMaps) Close() error {
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfPrograms struct {
-	TracepointSyscallsSysEnterExecve *ebpf.Program `ebpf:"tracepoint__syscalls__sys_enter_execve"`
-	TracepointSyscallsSysExitExecve  *ebpf.Program `ebpf:"tracepoint__syscalls__sys_exit_execve"`
+	TracepointSyscallsSysEnterExecve   *ebpf.Program `ebpf:"tracepoint__syscalls__sys_enter_execve"`
+	TracepointSyscallsSysEnterExecveat *ebpf.Program `ebpf:"tracepoint__syscalls__sys_enter_execveat"`
+	TracepointSyscallsSysExitExecve    *ebpf.Program `ebpf:"tracepoint__syscalls__sys_exit_execve"`
+	TracepointSyscallsSysExitExecveat  *ebpf.Program `ebpf:"tracepoint__syscalls__sys_exit_execveat"`
 }
 
 func (p *bpfPrograms) Close() error {
 	return _BpfClose(
 		p.TracepointSyscallsSysEnterExecve,
+		p.TracepointSyscallsSysEnterExecveat,
 		p.TracepointSyscallsSysExitExecve,
+		p.TracepointSyscallsSysExitExecveat,
 	)
 }
 
