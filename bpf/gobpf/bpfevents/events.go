@@ -144,6 +144,7 @@ type ProcessEvent struct {
 	Uid       uint32 `json:"uid"`
 	Gid       uint32 `json:"gid"`
 	SessionId uint32 `json:"sessionid"`
+	Reserved1 int32  `json:"reserved1"`
 
 	CgroupId       uint64 `json:"cgroupid"`
 	ParentCgroupId uint64 `json:"parent_cgroup_id"`
@@ -151,8 +152,6 @@ type ProcessEvent struct {
 	MntnsId uint32 `json:"mntns_id"`
 	PidnsId uint32 `json:"pidns_id"`
 	NetnsId uint64 `json:"netns_id"`
-
-	Reserved1 uint32 `json:"reserved1"`
 
 	/* Return value of the bpf program for LSM or of the kernel function */
 	ReturnValue int32 `json:"retval"`
@@ -163,7 +162,7 @@ type ProcessEvent struct {
 	/* Reason why access was allowed or denied : enum reason_value */
 	Reason int32 `json:"reason"`
 
-	Reserved2 uint32 `json:"reserved2"`
+	Reserved2 int32 `json:"reserved2"`
 
 	/* Comm of the task */
 	Comm [TaskCommLen]byte `json:"comm"`

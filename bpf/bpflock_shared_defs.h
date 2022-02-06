@@ -109,6 +109,7 @@ struct process_event {
         uid_t           uid;
         gid_t           gid;
         unsigned int    sessionid;
+        int             reserved1;
 
         uint64_t        cgroup_id;
         uint64_t        parent_cgroup_id;
@@ -116,8 +117,6 @@ struct process_event {
         unsigned int    mntns_id;
         unsigned int    pidns_id;
         uint64_t        netns_id;
-
-        int             reserved1;
 
         /* Return value of the bpf program for LSM or of the kernel function */
         int             retval;
