@@ -27,7 +27,6 @@ import (
 	"github.com/linux-lock/bpflock/pkg/logging/logfields"
 	"github.com/linux-lock/bpflock/pkg/option"
 	"github.com/linux-lock/bpflock/pkg/pidfile"
-	"github.com/linux-lock/bpflock/pkg/pprof"
 	linuxrequirements "github.com/linux-lock/bpflock/pkg/requirements/linux"
 	"github.com/linux-lock/bpflock/pkg/version"
 
@@ -164,12 +163,6 @@ func initializeFlags() {
 	flags.Bool(option.Version, false, "Print version information")
 	option.BindEnv(option.Version)
 
-	flags.Bool(option.PProf, false, "Enable serving the pprof debugging API")
-	option.BindEnv(option.PProf)
-
-	flags.Int(option.PProfPort, 6060, "Port that the pprof listens on")
-	option.BindEnv(option.PProfPort)
-
 	//flags.String(option.PrometheusServeAddr, "", "IP:Port on which to serve prometheus metrics (pass \":Port\" to bind on all interfaces, \"\" is off)")
 	//option.BindEnvWithLegacyEnvFallback(option.PrometheusServeAddr, "PROMETHEUS_SERVE_ADDR")
 
@@ -248,10 +241,6 @@ func initEnv(cmd *cobra.Command) {
 	common.RequireRootPrivilege(components.BpflockAgentName)
 
 	log.Infof("%s %s", components.BpflockAgentName, version.Version)
-
-	if option.Config.PProf {
-		pprof.Enable(option.Config.PProfPort)
-	}
 
 	scopedLog := log.WithFields(logrus.Fields{
 		logfields.Path + ".RunDir":    option.Config.RunDir,
