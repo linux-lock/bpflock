@@ -20,11 +20,10 @@ Note: bpflock is currently in **experimental stage**, it may break, options and 
 
 bpflock uses [eBPF](https://ebpf.io/) to strength Linux security. By restricting access to a various range of Linux features, bpflock is able to reduce the attack surface and block some well known attack techniques.
 
-Only programs like container managers, systemd and other containers/programs that run in the host [pid
-namespace](https://man7.org/linux/man-pages/man7/namespaces.7.html) may be able to access those features, containers
-that run on their own namespace will be restricted. If bpflock bpf programs run under a `restricted` profile then all
-programs/containers will be denied access even privileged ones. The filtering model will be augmented soon to include
-per cgroupv2 filetring.
+Only programs like container managers, systemd and other containers/programs that run in the host [pid and network namespaces](https://man7.org/linux/man-pages/man7/namespaces.7.html) are allowed access to full
+Linux features, containers and applications that run on their own namespace will be restricted.
+If bpflock bpf programs run under the `restricted` profile then all programs/containers including privileged
+ones will have their access denied.
 
 bpflock protects Linux machines by taking advantage of multiple security features including [Linux Security Modules + BPF](https://docs.kernel.org/bpf/prog_lsm.html).
 
@@ -33,7 +32,7 @@ Architecture and Security design notes:
 [AppArmor](https://apparmor.net/), [SELinux](https://github.com/SELinuxProject/selinux), and other MAC solutions.
 bpflock uses a simple declarative security profile.
 - bpflock offers multiple small bpf programs that can be reused in multiple contexts from Cloud Native deployments to Linux IoT devices.
-- bpflock is able to restrict root to access certain Linux features, however it does not protect against evil root users that can disable it.
+- bpflock is able to restrict root from accessing certain Linux features, however it does not protect against evil root.
 
 ## 2. Functionality Overview
 
@@ -69,11 +68,9 @@ bpflock offer multiple security protections that can be classified as:
 
 bpflock keeps the security semantics simple. It support three **global** profiles to broadly cover the security sepctrum, and restrict access to specific Linux features.
 
-Therefore, bpflock creates multiple shared bpf maps under `/sys/fs/bpf/` to store per container profiles. The `bpflock_cgroupmap` should be the one that will be used in future to filter per apps, containers and pods. The `bpflock_pidnsmap` and `bpflock_netnsmap` are used to only store the host pid and net namespaces.
-
-* `profile`: this is the global profile that takes one of the followings:
+* `profile`: this is the global profile that can be applied per bpf program, it takes one of the followings:
   - `allow|none|privileged` : they are the same, they define the least secure profile. In this profile access is logged and allowed for all processes. Useful to log security events.
-  - `baseline` : restrictive profile where access is denied for all processes, except privileged applications and containers that run in the host namespace, or applications that are present in the allow `bpflock_cgroupmap`.
+  - `baseline` : restrictive profile where access is denied for all processes, except privileged applications and containers that run in the host namespaces, or per cgroup allowed profiles in the `bpflock_cgroupmap` bpf map.
   - `restricted` : heavily restricted profile where access is denied for all processes.
 
 * `Allowed` or `blocked` operations/commands:
@@ -84,7 +81,6 @@ Therefore, bpflock creates multiple shared bpf maps under `/sys/fs/bpf/` to stor
 
 For bpf security examples check [bpflock configuration examples](https://github.com/linux-lock/bpflock/tree/main/deploy/configs/)
 
-**Note: the above semantics may change.**.
 
 ## 3. Deployment
 
@@ -105,27 +101,30 @@ bpflock needs the following:
 
 * Obviously a BTF enabled kernel.
 
-If you have `CONFIG_BPF_LSM=y` but when running boflock it fails with:
+#### Enable BPF LSM support
+
+If your kernel was compiled with `CONFIG_BPF_LSM=y` check the `/boot/config-*` to confirm, but when running bpflock it fails with:
+
 ```
 must have a kernel with 'CONFIG_BPF_LSM=y' 'CONFIG_LSM=\"...,bpf\"'"
 ```
 
-Then do the following on Ubuntu to enable BPF LSM:
+Then to enable BPF LSM as an example on Ubuntu:
 
-  - Open the /etc/default/grub file as privileged of course.
-  - Append the following to the `GRUB_CMDLINE_LINUX` variable
-  ```
-  "lsm=lockdown,capability,yama,apparmor,bpf"
-  ```
-  or
-  ```
-  GRUB_CMDLINE_LINUX="lsm=lockdown,capability,yama,apparmor,bpf"
-  ```
-  - Then update grub config with:
-  ```bash
-  sudo update-grub2
-  ```
-  - Reboot into your kernel.
+  1. Open the /etc/default/grub file as privileged of course.
+  2. Append the following to the `GRUB_CMDLINE_LINUX` variable and save.
+     ```
+     "lsm=lockdown,capability,yama,apparmor,bpf"
+     ```
+     or
+     ```
+     GRUB_CMDLINE_LINUX="lsm=lockdown,capability,yama,apparmor,bpf"
+     ```
+  3. Update grub config with:
+     ```bash
+     sudo update-grub2
+     ```
+  4. Reboot into your kernel.
 
 
 ### 3.2 Docker deployment
@@ -137,12 +136,6 @@ docker run --name bpflock -it --rm --cgroupns=host \
   -v /sys/kernel/:/sys/kernel/ \
   -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
 ```
-
-Then in another terminal read from the tracing pipe to see logs:
-```bash
-sudo cat /sys/kernel/debug/tracing/trace_pipe
-```
-Note: this is a temporary testing solution, bpflock will soon display all logs directly.
 
 #### Fileless Binary Execution
 
@@ -248,7 +241,7 @@ docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
   -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
 ```
 
-Passing environment variables can be done also with files using `--env-file`. All parameters can be passed as environment variables using the `BPFLOCK_$VARIABLE_NAME=VALUE` schema.
+Passing environment variables can also be done with files using `--env-file`. All parameters can be passed as environment variables using the `BPFLOCK_$VARIABLE_NAME=VALUE` format.
 
 Example run with environment variables in a file:
 ```bash
@@ -257,7 +250,6 @@ docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
   -v /sys/kernel/:/sys/kernel/ \
   -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
 ```
-
 
 ## 4. Documentation
 
