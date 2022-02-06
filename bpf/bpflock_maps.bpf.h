@@ -63,7 +63,7 @@ struct {
 /* Per mntns profile: usage is restricted and it will be removed */
 struct {
         __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 1024);
+        __uint(max_entries, 1);
         __type(key, unsigned int);
         __type(value, struct mntns_map_entry);
         __uint(pinning, LIBBPF_PIN_BY_NAME);

@@ -49,15 +49,16 @@ var (
 )
 
 type ExecSnoopBpf struct {
-	name string
-
+	name        string
 	description string
 
 	// bpfObjects contains all objects after they have been loaded into the kernel.
 	objs bpfObjects
 
-	sysEnterExecve link.Link
-	sysExitExecve  link.Link
+	sysEnterExecveAt link.Link
+	sysExitExecveAt  link.Link
+	sysEnterExecve   link.Link
+	sysExitExecve    link.Link
 
 	ring *ringbuf.Reader
 
@@ -158,8 +159,25 @@ func (e *ExecSnoopBpf) Attach(target string) error {
 		e.Detach()
 		log.WithError(err).Errorf("opening tracepoint 'sys_exit_execve' failed")
 	}
-
 	e.sysExitExecve = tp
+
+	tp, err = link.Tracepoint("syscalls", "sys_enter_execveat",
+		e.objs.TracepointSyscallsSysEnterExecveat)
+	if err != nil {
+		e.Detach()
+		log.WithError(err).Errorf("opening tracepoint 'sys_enter_execveat' failed")
+		return err
+	}
+	e.sysEnterExecveAt = tp
+
+	tp, err = link.Tracepoint("syscalls", "sys_exit_execveat",
+		e.objs.TracepointSyscallsSysExitExecveat)
+	if err != nil {
+		e.Detach()
+		log.WithError(err).Errorf("opening tracepoint 'sys_exit_execveat' failed")
+		return err
+	}
+	e.sysExitExecveAt = tp
 
 	err = e.SetArgs(target)
 	if err != nil {
@@ -205,16 +223,22 @@ func (e *ExecSnoopBpf) UnpinLocalMaps() {
 	os.RemoveAll(pinnedMap)
 }
 
-func (e *ExecSnoopBpf) closeLinks() {
-	if e.sysExitExecve != nil {
-		e.sysExitExecve.Close()
-		e.sysExitExecve = nil
+func _ExecSnoopCloseLinks(links ...link.Link) {
+	for _, l := range links {
+		if l != nil {
+			l.Close()
+			l = nil
+		}
 	}
+}
 
-	if e.sysEnterExecve != nil {
-		e.sysEnterExecve.Close()
-		e.sysEnterExecve = nil
-	}
+func (e *ExecSnoopBpf) closeLinks() {
+	_ExecSnoopCloseLinks(
+		e.sysEnterExecve,
+		e.sysEnterExecveAt,
+		e.sysExitExecve,
+		e.sysExitExecveAt,
+	)
 }
 
 // CloseExecSnoop remove and detach execsnoop resources

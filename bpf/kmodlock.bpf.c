@@ -19,101 +19,53 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include <errno.h>
-#include "bpflock_bpf_defs.h"
-#include "bpflock_shared_defs.h"
+
+#include "bpflock_defs.bpf.h"
 #include "kmodlock.h"
 
 struct {
-        __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 8);
-        __type(key, uint32_t);
-        __type(value, uint32_t);
-} disablemods_map SEC(".maps");
-
-struct {
-        __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 8);
-        __type(key, uint32_t);
-        __type(value, struct bl_stat);
-} disablemods_ns_map SEC(".maps");
-
-struct {
-        __uint(type, BPF_MAP_TYPE_HASH);
+        __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
         __uint(max_entries, 1);
         __type(key, uint32_t);
-        __type(value, struct sb_elem);
-} disablemods_sb_map SEC(".maps");
+        __type(value, struct process_event);
+} kmodlock_event_storage SEC(".maps");
 
-static __always_inline bool is_init_pid_ns(void)
+struct {
+        __uint(type, BPF_MAP_TYPE_HASH);
+        __uint(max_entries, 5);
+        __type(key, uint32_t);
+        __type(value, uint32_t);
+} kmodlock_args_map SEC(".maps");
+
+const volatile bool debug = false;
+
+/* readonly test var to enforce profile and avoid bpf maps... */
+const volatile enum bpflock_profile global_profile = 0;
+
+static __always_inline bool is_task_allowed(struct process_event *event,
+                                            int cgrp_incestor_level)
 {
-        struct task_struct *current;
-        unsigned long id = 0;
-        
-        current = (struct task_struct *)bpf_get_current_task();
-        id = BPF_CORE_READ(current, nsproxy, pid_ns_for_children, ns.inum);
+        uint32_t *filter;
+        uint32_t k = KMODLOCK_MAPS_FILTER;
 
-        return id == (unsigned long)PROC_PID_INIT_INO;
-}
+        /* By default pass the corresponding filter */
+        if (is_pidns_allowed((struct bpf_map *)&bpflock_pidnsmap,
+                             BPFLOCK_P_FILTER_PIDNS, event))
+                return true;
 
-static __always_inline bool is_init_mnt_ns(void)
-{
-        struct task_struct *current;
-        struct bl_stat *st;
-        unsigned long ino = 0;
-        uint32_t k = BPFLOCK_KM_NS;
+        if (is_netns_allowed((struct bpf_map *)&bpflock_netnsmap,
+                             BPFLOCK_P_FILTER_NETNS, event))
+                return true;
 
-        /*
-         * If we fail to read stat namespaces then just assume
-         * not same namespaces.
-         */
-        st = bpf_map_lookup_elem(&disablemods_ns_map, &k);
-        if (!st)
-                return false;
+        filter = bpf_map_lookup_elem(&kmodlock_args_map, &k);
+        /* If fitler then match the cgroupmap */
+        if (filter && *filter > 0) {
+                if (is_cgroup_allowed((struct bpf_map *)&bpflock_cgroupmap,
+                                      *filter, event, cgrp_incestor_level))
+                        return true;
+        }
 
-        current = (struct task_struct *)bpf_get_current_task();
-        ino = BPF_CORE_READ(current, nsproxy, mnt_ns, ns.inum);
-
-        /*
-         * For now lets compare only ino which is the ns.inum
-         * on proc.
-         */
-        return ino == (unsigned long)PROC_DYNAMIC_FIRST && ino == st->st_ino;
-}
-
-static __always_inline int report(const char *op, const int ret, int reason)
-{
-        uint64_t id;
-        static struct event info;
-
-        id = bpf_get_current_pid_tgid();
-        info.pid = id >> 32;
-
-        bpf_get_current_comm(&info.comm, sizeof(info.comm));
-
-        bpf_printk("bpflock bpf=kmodlock pid=%lu comm=%s event=%s\n",
-                   info.pid, info.comm, op);
-        bpf_printk("bpflock bpf=kmodlock pid=%lu event=%s status=%s\n",
-                   info.pid, op, get_reason_str(ret, reason));
-
-        return ret;
-}
-
-static __always_inline struct sb_elem *lookup_sb_elem(void)
-{
-        uint32_t key = BPFLOCK_KM_SB;
-        return bpf_map_lookup_elem(&disablemods_sb_map, &key);
-}
-
-static __always_inline long prepare_sb_elem(void)
-{
-        struct sb_elem sb_init = {}, *sb_val;
-        uint32_t key = BPFLOCK_KM_SB;
-
-        sb_val = bpf_map_lookup_elem(&disablemods_sb_map, &key);
-        if (sb_val)
-                return 0;
-
-        return bpf_map_update_elem(&disablemods_sb_map, &key, &sb_init, BPF_NOEXIST);
+        return false;
 }
 
 static __always_inline struct super_block *bpf_read_sb_from_file(struct file *file)
@@ -124,92 +76,59 @@ static __always_inline struct super_block *bpf_read_sb_from_file(struct file *fi
         return BPF_CORE_READ(mnt, mnt_sb);
 }
 
-static __always_inline int module_rootfs_check(struct file *file,
-                enum kernel_read_file_id id, bool contents)
+static __always_inline int module_load_check(const char *kmod_name, int eventid, int blocked_op)
 {
-        struct sb_elem *sb_root_val;
-        struct super_block *sb;
-        unsigned long sdev;
-        int ret;
+        uint32_t *val, blocked = 0, reason = 0, ret = 0;
+        uint32_t k = KMODLOCK_PROFILE;
+        struct process_event *event;
+        uint32_t zero = 0;
 
-        /* If we do not have full content nor file context we deny */
-        if (!contents || !file) {
-                /* TODO log operation */
-                return -EPERM;
-        }
-
-        sb = bpf_read_sb_from_file(file);
-        sb_root_val = lookup_sb_elem();
-        if (!sb_root_val)
-                return -EPERM;
-
-        /* Set sb root here if it was not set */
-        bpf_spin_lock(&sb_root_val->lock);
-        if (!sb_root_val->sb_root && sb_root_val->freed == 0)
-                sb_root_val->sb_root = sb;
-        bpf_spin_unlock(&sb_root_val->lock);
-
-        /* Deny if the module is loaded from another block or block was freed. */
-        if (!sb_root_val->sb_root || sb_root_val->freed || sb_root_val->sb_root != sb) {
-                return -EPERM;
-        }
-
-        return 0;
-}
-
-static __always_inline int module_load_check(int blocked_op)
-{
-        uint32_t *val, blocked = 0;
-        uint32_t k = BPFLOCK_KM_PERM;
-
-        val = bpf_map_lookup_elem(&disablemods_map, &k);
+        val = bpf_map_lookup_elem(&kmodlock_args_map, &k);
         if (!val)
                 return 0;
 
+        event = bpf_map_lookup_elem(&kmodlock_event_storage, &zero);
+        /* Do not fail as we have to take decisions */
+        if (likely(event)) {
+                collect_event_info(event, BPF_PROG_TYPE_LSM, BPF_LSM_MAC,
+                                   KMODLOCK_ID, eventid);
+                collect_event_operation(event, blocked_op);
+                if (kmod_name)
+                        bpf_probe_read_kernel_str(&event->filename,
+                                                  sizeof(event->filename), kmod_name);
+        }
+
         blocked = *val;
         if (blocked == BPFLOCK_P_RESTRICTED)
-                return report("module load", -EPERM, reason_restricted);
+                return report(event, eventid, -EPERM, reason_restricted, debug);
 
-        if (blocked == BPFLOCK_P_ALLOW)
-                return report("module load", 0, reason_allow);
+        if (blocked == BPFLOCK_P_ALLOW) {
+                reason = reason_allow;
+                ret = 0;
+        } else if (blocked == BPFLOCK_P_BASELINE) {
+                if (!is_task_allowed(event, 0))
+                        return report(event, eventid, -EPERM, reason_baseline, debug);
 
-        /* If restrict and not in init pid namespace deny access */
-        if (blocked == BPFLOCK_P_BASELINE && !is_init_pid_ns())
-                return report("module load from non init pid namespace", -EPERM, reason_baseline);
+                reason = reason_baseline;
+                ret = 0;
+        } else {
+                /* Guard */
+                return report(event, eventid, -EPERM, reason_restricted, debug);
+        }
 
-        k = BPFLOCK_KM_OP;
-        val = bpf_map_lookup_elem(&disablemods_map, &k);
+        k = KMODLOCK_BLOCK_OP;
+        val = bpf_map_lookup_elem(&kmodlock_args_map, &k);
         if (!val)
-                return report("module load", 0, reason_baseline_allowed);
+                return report(event, eventid, ret, reason, debug);
 
         blocked = *val;
         if (blocked & blocked_op)
-                return report("module load", -EPERM, reason_baseline_restricted);
+                return report(event, eventid, -EPERM, reason_baseline_restricted, debug);
 
-        return report("module load", 0, reason_baseline);
+        return report(event, eventid, ret, reason, debug);
 }
 
-SEC("lsm/sb_free_security")
-void BPF_PROG(km_sb_free, struct super_block *mnt_sb)
-{
-        struct sb_elem *sb_root_val;
-
-        /* This was never registered as root sb */
-        sb_root_val = lookup_sb_elem();
-        if (!sb_root_val)
-                return;
-
-        /*
-         Lets be consistent with loadpin:
-         disable sb_root and deactivate module loading
-        */
-        bpf_spin_lock(&sb_root_val->lock);
-        if (sb_root_val->sb_root == mnt_sb)
-                sb_root_val->freed = 1;
-                sb_root_val->sb_root = NULL;
-        bpf_spin_unlock(&sb_root_val->lock);
-}
-
+/* TODO: correlate later this event with loading to read module name */
 SEC("lsm/locked_down")
 int BPF_PROG(km_locked_down, enum lockdown_reason what, int ret)
 {
@@ -223,9 +142,10 @@ int BPF_PROG(km_locked_down, enum lockdown_reason what, int ret)
         else if (what == LOCKDOWN_MODULE_PARAMETERS)
                 blocked_op = BPFLOCK_KM_UNSAFEMOD;
         else
+                /* We are not interested into other events */
                 return 0;
 
-        return module_load_check(blocked_op);
+        return module_load_check(NULL, LSM_LOCKED_DOWN_ID, blocked_op);
 }
 
 SEC("lsm/kernel_module_request")
@@ -234,28 +154,26 @@ int BPF_PROG(km_autoload, char *kmod_name, int ret)
         if (ret != 0)
                 return ret;
 
-        return module_load_check(BPFLOCK_KM_AUTOLOAD);
+        return module_load_check(kmod_name, LSM_KERNEL_MODULE_REQUEST_ID,
+                                 BPFLOCK_KM_AUTOLOAD);
 }
 
 static int kmod_from_file(struct file *file,
                 enum kernel_read_file_id id, bool contents)
 {
-        struct super_block *sb;
-        uint32_t key = BPFLOCK_KM_SB;
-        unsigned long sdev;
         int ret;
+        const char *p;
 
-        prepare_sb_elem();
+        /* If we do not have file context we deny */
+        if (!file) {
+                /* TODO: even if it is old API it should be logged switch to kprobe */
+                return -EPERM;
+        }
 
-        ret = module_load_check(BPFLOCK_KM_LOAD);
+        p = (char *)BPF_CORE_READ(file, f_path.dentry, d_name.name);
+        ret = module_load_check(p, LSM_KERNEL_READ_FILE_ID, BPFLOCK_KM_LOAD);
         if (ret < 0)
                 return ret;
-
-        /*
-        ret = module_rootfs_check(file, id, contents);
-        if (ret < 0)
-                return ret;
-        */
 
         return 0;
 }

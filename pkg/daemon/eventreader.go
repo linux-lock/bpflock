@@ -13,6 +13,9 @@ import (
 	"github.com/cilium/ebpf/ringbuf"
 
 	"github.com/linux-lock/bpflock/bpf/gobpf/bpfevents"
+	"github.com/linux-lock/bpflock/bpf/gobpf/bpfrestrict"
+	"github.com/linux-lock/bpflock/bpf/gobpf/kimglock"
+	"github.com/linux-lock/bpflock/bpf/gobpf/kmodlock"
 	"github.com/linux-lock/bpflock/pkg/bpf"
 	"github.com/linux-lock/bpflock/pkg/logging"
 	"github.com/linux-lock/bpflock/pkg/logging/logfields"
@@ -20,6 +23,24 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
+
+func getOperationStr(event *bpfevents.ProcessEvent, str *strings.Builder) {
+	var err error
+	var op string
+
+	switch event.ProgramId {
+	case bpfevents.KimgLockId:
+		op, err = kimglock.GetOperationStr(event)
+	case bpfevents.KmodLockId:
+		op, err = kmodlock.GetOperationStr(event)
+	case bpfevents.BpfRestrictId:
+		op, err = bpfrestrict.GetOperationStr(event)
+	}
+
+	if err == nil && op != "" && op != "(none)" {
+		fmt.Fprintf(str, " operation=%s", op)
+	}
+}
 
 func logEvent(event *bpfevents.ProcessEvent, bpflog *logrus.Entry, str *strings.Builder) {
 	if event == nil {
@@ -46,6 +67,8 @@ func logEvent(event *bpfevents.ProcessEvent, bpflog *logrus.Entry, str *strings.
 	}
 
 	fmt.Fprintf(str, "event=%s", data)
+	getOperationStr(event, str)
+
 	fmt.Fprintf(str, " tgid=%d pid=%d ppid=%d uid=%d cgroupid=%d",
 		event.Tgid, event.Pid, event.Ppid, event.Uid, event.CgroupId)
 
@@ -57,8 +80,13 @@ func logEvent(event *bpfevents.ProcessEvent, bpflog *logrus.Entry, str *strings.
 		fmt.Fprintf(str, " pcomm=%s", unix.ByteSliceToString(event.Pcomm[:]))
 	}
 
+	filename := ""
 	if len(event.FileName) > 0 {
-		fmt.Fprintf(str, " filename=%s", unix.ByteSliceToString(event.FileName[:]))
+		filename = unix.ByteSliceToString(event.FileName[:])
+	}
+
+	if len(filename) > 0 {
+		fmt.Fprintf(str, " filename=%s", filename)
 	}
 
 	fmt.Fprintf(str, " retval=%d", event.ReturnValue)

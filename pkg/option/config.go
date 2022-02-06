@@ -74,7 +74,7 @@ const (
 	LogOpt = "log-opt"
 
 	// Logstash enables logstash integration
-	Logstash = "logstash"
+	// Logstash = "logstash"
 
 	// SocketPath sets daemon's socket path to listen for connections
 	SocketPath = "socket-path"
@@ -85,14 +85,8 @@ const (
 	// Version prints the version information
 	Version = "version"
 
-	// PProf enables serving the pprof debugging API
-	PProf = "pprof"
-
-	// PProfPort is the port that the pprof listens on
-	PProfPort = "pprof-port"
-
 	// PrometheusServeAddr IP:Port on which to serve prometheus metrics (pass ":Port" to bind on all interfaces, "" is off)
-	PrometheusServeAddr = "prometheus-serve-addr"
+	// PrometheusServeAddr = "prometheus-serve-addr"
 
 	// EnableIPv4Name is the name of the option to enable IPv4 support
 	EnableIPv4Name = "enable-ipv4"
@@ -113,7 +107,7 @@ const (
 
 	// kimglock
 	KimgLockProfile = "kimglock-profile"
-	KimgLockAllow   = "kimglock-allow"
+	KimgLockBlock   = "kimglock-block"
 
 	// filelesslock
 	FilelessLockProfile = "filelesslock-profile"
@@ -234,13 +228,11 @@ type DaemonConfig struct {
 	DebugVerbose []string
 	LogDriver    []string
 	LogOpt       map[string]string
-	Logstash     bool
-	SocketPath   string
+	// Logstash     bool
+	SocketPath string
 
-	Version             string
-	PProf               bool
-	PProfPort           int
-	PrometheusServeAddr string
+	Version string
+	// PrometheusServeAddr string
 
 	ExecSnoopTarget string
 	BpfMeta         *models.BpfMeta
@@ -623,10 +615,8 @@ func (c *DaemonConfig) Populate() {
 	c.DebugVerbose = viper.GetStringSlice(DebugVerbose)
 	c.VarLibDir = viper.GetString(VarLibDir)
 	c.LogDriver = viper.GetStringSlice(LogDriver)
-	c.Logstash = viper.GetBool(Logstash)
-	c.PProf = viper.GetBool(PProf)
-	c.PProfPort = viper.GetInt(PProfPort)
-	c.PrometheusServeAddr = viper.GetString(PrometheusServeAddr)
+	//c.Logstash = viper.GetBool(Logstash)
+	//c.PrometheusServeAddr = viper.GetString(PrometheusServeAddr)
 	c.RunDir = viper.GetString(StateDir)
 	c.Version = viper.GetString(Version)
 	c.SocketPath = defaults.SockPath
@@ -649,9 +639,9 @@ func (c *DaemonConfig) Populate() {
 	value = viper.GetString(KimgLockProfile)
 	if value != "" {
 		kimgrargs = fmt.Sprintf("--profile=%s", value)
-		value = viper.GetString(KimgLockAllow)
+		value = viper.GetString(KimgLockBlock)
 		if value != "" {
-			kimgrargs = fmt.Sprintf("%s --allow=%s", kimgrargs, value)
+			kimgrargs = fmt.Sprintf("%s --block=%s", kimgrargs, value)
 		}
 	}
 

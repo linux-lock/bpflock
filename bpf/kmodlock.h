@@ -1,21 +1,25 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /*
- * Copyright (C) 2021 Djalal Harouni
+ * Copyright (C) 2022 Djalal Harouni
  */
 
 #ifndef __BPFLOCK_KMODLOCK_H
 #define __BPFLOCK_KMODLOCK_H
 
+#include "bpflock_shared_object_ids.h"
 #include "bpflock_security_class.h"
-#include "bpflock_bpf_defs.h"
 
 /* kmodlock security class */
 
 #define LOG_KMODLOCK "kmodlock"
 
-#define BPFLOCK_KM_PERM        1
-#define BPFLOCK_KM_OP          2
+/* Arguments */
+#define KMODLOCK_PROFILE     1
+#define KMODLOCK_ALLOW_OP    2
+#define KMODLOCK_BLOCK_OP    3
+#define KMODLOCK_MAPS_FILTER 4
+#define KMODLOCK_DEBUG       5
 
 #define BPFLOCK_KM_LOAD         (1 << 0)
 #define BPFLOCK_KM_UNLOAD       (1 << 1)
@@ -23,38 +27,31 @@
 #define BPFLOCK_KM_UNSIGNED     (1 << 3)
 #define BPFLOCK_KM_UNSAFEMOD    (1 << 4)
 
-enum dm_env {
-        BPFLOCK_KM_NS           = BPFLOCK_NS_KEY,
-        BPFLOCK_KM_SB,
-};
-
-struct bpflock_class_map dmodules_security_map = {
+struct bpflock_class_map kmodlock_security_map = {
         "kmodlock",
         "/sys/fs/bpf/bpflock/kmodlock/",
         { NULL },
         { 0 }
 };
 
-struct bpflock_class_prog_link dmodules_prog_links[] = {
+struct bpflock_class_prog_link kmodlock_prog_links[] = {
         {
                 "kmodlock_autoload",
-                "/sys/fs/bpf/bpflock/kmodlock/kmodlock_autoload_link",
+                "/sys/fs/bpf/bpflock/kmodlock/km_autoload_link",
         },
         {
                 "kmodlock_read_file",
-                "/sys/fs/bpf/bpflock/kmodlock/kmodlock_readfile_link",
+                "/sys/fs/bpf/bpflock/kmodlock/km_read_file_link",
         },
         {
                 "kmodlock_load_data",
-                "/sys/fs/bpf/bpflock/kmodlock/kmodlock_loaddata_link",
+                "/sys/fs/bpf/bpflock/kmodlock/km_load_data_link",
         },
         {
                 "kmodlock_locked_down",
-                "/sys/fs/bpf/bpflock/kmodlock/kmodlock_lockedown_link",
+                "/sys/fs/bpf/bpflock/kmodlock/km_locked_down_link",
         },
 };
 
 /* End of kmodlock security class */
-
-
 #endif /* __BPFLOCK_KMODLOCK_H */

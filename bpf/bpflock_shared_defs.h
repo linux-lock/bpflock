@@ -9,10 +9,6 @@
 #ifndef __BPFLOCK_SHARED_DEFS_H
 #define __BPFLOCK_SHARED_DEFS_H
 
-#ifndef MAX_CPU
-#define MAX_CPU 512
-#endif
-
 #ifndef TASK_COMM_LEN
 #define TASK_COMM_LEN           16
 #endif
@@ -105,6 +101,7 @@ struct process_event {
 
         int             program_id;
         int             event_id;
+        int             operation_id;
 
         pid_t           tgid;
         pid_t           pid;
@@ -112,6 +109,7 @@ struct process_event {
         uid_t           uid;
         gid_t           gid;
         unsigned int    sessionid;
+        int             reserved1;
 
         uint64_t        cgroup_id;
         uint64_t        parent_cgroup_id;
@@ -129,7 +127,7 @@ struct process_event {
         /* Reason why access was allowed : enum reason_value */
         int             reason;
 
-        int             reserved1;
+        int             reserved2;
 
         char            comm[TASK_COMM_LEN];
         char            pcomm[TASK_COMM_LEN];

@@ -123,9 +123,6 @@ If `/sys` is read-only and can not be remounted, then `kimglock` is pinned and c
 
 After pinning the corresponding bpf program, kmodlock will exit.
 
-**Under development:**
-kmodlock can also be used to ensure that all kernel modules and firmware that are loaded originate from the same root filesystem. Extra flags can be passed to ensure that such filesystem is: mounted read-only or either backed by a read-only device such as dm-verity, if not then the operation will be denied. Some of this functionality was inspired by [LoadPin LSM](https://www.kernel.org/doc/html/latest/admin-guide/LSM/LoadPin.html).
-
 ### 2.2 Modules protection usage
 
 kmodlock supports the following options:
@@ -146,41 +143,57 @@ kmodlock supports the following options:
 
 Examples:
 
-* Allow profile: loading kernel modules is allowed.
+* Allow profile: loading kernel modules is logged and allowed.
   ```bash
-  bpflock --kmodlock-profile=allow
-  bpflock --kmodlock-profile=none
-  bpflock --kmodlock-profile=privileged
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+  ```
+  
+  ```bash
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_KMODLOCK_PROFILE=allow" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
 * Allow profile: loading kernel modules is allowed, but unsigned modules and automatic modules loading are rejected.
   ```bash
-  bpflock --kmodlock-profile=allow --kmodlock-block=unsigned_module,autoload_module
-  ```
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_KMODLOCK_PROFILE=allow" \
+    -e "BPFLOCK_KMODLOCK_BLOCK=unsigned_module,autoload_module" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+  ``` 
 
 * Baseline profile: module operations are allowed only from processes in the initial pid and network namespaces.
   ```bash
-  bpflock --kmodlock-profile=baseline
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_KMODLOCK_PROFILE=baseline" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
-* Baseline profile: module operations are allowed only from processes in the initial pid and network namespaces, but loading unsigned modules is blocked for all.
+* Baseline profile: module operations are allowed only from processes in the initial pid and network namespaces, but loading unsigned modules and automatic operations are blocked for all.
   ```bash
-  bpflock --kmodlock-profile=baseline --kmodlock-block=unsigned_module
-  ```
-
-* Baseline profile: module operations are allowed only from processes in the initial pid and network namespaces, but automatic module loading is blocked for all.
-  ```bash
-  bpflock --kmodlock-profile=baseline --kmodlock-block=autoload_module
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_KMODLOCK_PROFILE=baseline" \
+    -e "BPFLOCK_KMODLOCK_BLOCK=unsigned_module,autoload_module" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
 * Restriced profile: loading modules is denied or all processes.
   ```bash
-  bpflock --kmodlock-profile=restricted
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_KMODLOCK_PROFILE=restricted" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
 ### 2.3 Disable modules protections
 
-For containers workload to disable this program, delete the directory `/sys/fs/bpf/bpflock/kmodlock` and all its pinned content. Re-executing will enable it again.
+To disable this program, delete the directory `/sys/fs/bpf/bpflock/kmodlock` and all its pinned content. Re-executing will enable it again.
 
 If `/sys` is read-only and can not be remounted, then bpflock kmodlock is pinned and continues to run.
 
@@ -218,40 +231,65 @@ It supports following options:
 
 Examples:
 
-* Allow profile: BPF access is allowed
+* Allow profile: BPF access is logged and allowed
   ```bash
-  bpflock --bpfrestrict-profile=none
-  bpflock --bpfrestrict-profile=allow
-  bpflock --bpfrestrict-profile=privileged
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+  ```
+
+  ```bash
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_BPFRESTRICT_PROFILE=allow" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
 * Allow profile: BPF access is allowed but bpf write to user space memory is blocked for all.
   ```bash
-  bpflock --bpfrestrict-profile=allow --bpfrestrict-block=bpf_write
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_BPFRESTRICT_PROFILE=allow" \
+    -e "BPFLOCK_BPFRESTRICT_BLOCK=bpf_write" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ``` 
 
 * Baseline profile: BPF access is allowed from processes in the initial pid and network namespaces.
   ```bash
-  bpflock --bpfrestrict-profile=baseline
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_BPFRESTRICT_PROFILE=baseline" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
 * Baseline profile: BPF access is allowed only from processes in the initial pid and network namespaces, but bpf_probe_write_user() helper to write user RAM is blocked for all.
   ```bash
-  bpflock --bpfrestrict-profile=baseline --bpfrestrict-block=bpf_write
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_BPFRESTRICT_PROFILE=baseline" \
+    -e "BPFLOCK_BPFRESTRICT_BLOCK=bpf_write" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
 * Baseline profile: BPF access is allowed only from processes in the initial pid and network namespaces, but the `btf_load` loading BTF metadata into the kernel is blocked for all.
   ```bash
-  bpflock --bpfrestrict-profile=baseline --bpfrestrict-block=btf_load
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_BPFRESTRICT_PROFILE=baseline" \
+    -e "BPFLOCK_BPFRESTRICT_BLOCK=btf_load" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
 * Restricted profile: deny BPF for all processes.
   ```bash
-  bpflock --bpfrestrict-profile=restricted
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_BPFRESTRICT_PROFILE=restricted" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
 ### 3.3 Disable bpfrestrict
 
-For containers workload to disable bpfrestrict, delete the directory `/sys/fs/bpf/bpflock/bpfrestrict` and all its pinned content. Re-executing will enable it again.
+To disable bpfrestrict delete the directory `/sys/fs/bpf/bpflock/bpfrestrict` and all its pinned content. Re-executing will enable it again.
 
 If `/sys` filesystem is read-only and can not be remounted read-write, then bpflock bpfrestrict is pinned and can't be disabled.
