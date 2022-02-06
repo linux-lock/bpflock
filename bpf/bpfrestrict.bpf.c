@@ -107,7 +107,8 @@ int BPF_PROG(bpfrestrict_bpf, int cmd, union bpf_attr *attr,
                 } else if (blocked == BPFLOCK_P_BASELINE) {
                         /* If baseline then check the map filters */
                         if (!is_task_allowed(event, 0))
-                                return report(event, LSM_BPF_ID, -EPERM, reason_baseline, debug);
+                                return report(event, LSM_BPF_ID, -EPERM,
+                                              reason_baseline_restricted, debug);
                         reason = reason_baseline;
                         ret = 0;
                 } else {
@@ -190,7 +191,8 @@ int BPF_PROG(bpfrestrict_locked_down, enum lockdown_reason what, int ret)
                 ret = 0;
         } else if (blocked == BPFLOCK_P_BASELINE) {
                 if (!is_task_allowed(event, 0))
-                        return report(event, LSM_LOCKED_DOWN_ID, -EPERM, reason_baseline, debug);
+                        return report(event, LSM_LOCKED_DOWN_ID, -EPERM,
+                                      reason_baseline_restricted, debug);
                 
                 reason = reason_baseline;
                 ret = 0;
