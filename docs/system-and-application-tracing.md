@@ -19,11 +19,7 @@ It supports following option:
 
  * `--exec-snoop`:
     - `none` : tracing process exec() calls is disabled.
-    - `filter` : trace only processes that match the filter.
     - `all` : trace all process exec() calls.
-
-
-Examples:
 
 * Tracing process execution is disabled:
   ```bash
@@ -44,5 +40,5 @@ Examples:
 
 ### Disable execsnoop
 
-To disable bpflock execsnoop, just stop the container. In future a more options will be added to disable it without
+To disable bpflock execsnoop, just stop the container. In future more options will be added to disable it without
 stopping the bpflock container.
