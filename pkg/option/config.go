@@ -107,7 +107,7 @@ const (
 
 	// kimglock
 	KimgLockProfile = "kimglock-profile"
-	KimgLockAllow   = "kimglock-allow"
+	KimgLockBlock   = "kimglock-block"
 
 	// filelesslock
 	FilelessLockProfile = "filelesslock-profile"
@@ -639,9 +639,9 @@ func (c *DaemonConfig) Populate() {
 	value = viper.GetString(KimgLockProfile)
 	if value != "" {
 		kimgrargs = fmt.Sprintf("--profile=%s", value)
-		value = viper.GetString(KimgLockAllow)
+		value = viper.GetString(KimgLockBlock)
 		if value != "" {
-			kimgrargs = fmt.Sprintf("%s --allow=%s", kimgrargs, value)
+			kimgrargs = fmt.Sprintf("%s --block=%s", kimgrargs, value)
 		}
 	}
 
