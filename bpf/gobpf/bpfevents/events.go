@@ -136,6 +136,8 @@ type ProcessEvent struct {
 	ProgramId  int32 `json:"program_id"`
 	EventId    int32 `json:"event_id"`
 
+	OperationId int32 `json:"operation_id"`
+
 	Tgid      uint32 `json:"tgid"`
 	Pid       uint32 `json:"pid"`
 	Ppid      uint32 `json:"ppid"`
@@ -150,16 +152,18 @@ type ProcessEvent struct {
 	PidnsId uint32 `json:"pidns_id"`
 	NetnsId uint64 `json:"netns_id"`
 
+	Reserved1 uint32 `json:"reserved1"`
+
 	/* Return value of the bpf program for LSM or of the kernel function */
 	ReturnValue int32 `json:"retval"`
 
 	/* Map filters that matched the access */
 	MatchedFilter int32 `json:"matched_filter"`
 
-	/* Reason why access was allowed : enum reason_value */
+	/* Reason why access was allowed or denied : enum reason_value */
 	Reason int32 `json:"reason"`
 
-	Reserved1 int32 `json:"reserved1"`
+	Reserved2 uint32 `json:"reserved2"`
 
 	/* Comm of the task */
 	Comm [TaskCommLen]byte `json:"comm"`
@@ -171,5 +175,5 @@ type ProcessEvent struct {
 	FileName [TaskFileName]byte `json:"filename"`
 
 	/* Auxiliary data */
-	DataLen [DataLen]byte `json:"data"`
+	Data [DataLen]byte `json:"data"`
 }
