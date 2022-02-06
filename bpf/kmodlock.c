@@ -14,7 +14,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "bpflock_security_class.h"
 #include "bpflock_shared_defs.h"
 #include "trace_helpers.h"
 #include "bpflock_utils.h"
@@ -26,6 +25,9 @@ static struct options {
         int block_op_int;
         char *perm;
         char *block_op;
+        char *maps_filter_str;
+        unsigned long filter_int;
+        bool debug;
 } opt = {};
 
 const char *argp_program_version = "kmodlock 0.1";
@@ -34,25 +36,31 @@ const char *argp_program_bug_address =
 const char argp_program_doc[] =
 "bpflock kmodlock - restrict kernel module load operations.\n"
 "\n"
-"USAGE: kmodlock [--help] [-p PROFILE] [-b CMD] [--rootfs] [--ro] [--ro-dev]\n"
+"USAGE: kmodlock [--help] [-p PROFILE] [-b CMDs]\n"
 "\n"
 "EXAMPLES:\n"
 "  # Allow profile: kernel module operations are allowed.\n"
 "  kmodlock --profile=allow\n\n"
-"  # Baseline profile: kernel module operations are allowed for tasks in initial pid namespace.\n"
+"  # Baseline profile: kernel module operations are allowed for tasks\n"
+"  # in initial pid and network namespaces.\n"
 "  kmodlock --profile=baseline\n\n"
-"  # Baseline profile: restrict kernel module operations to tasks in initial pid namespace and\n"
-"  # block loading of unsigned modules and other automatic module operations.\n"
+"  # Baseline profile: restrict kernel module operations to tasks in\n"
+"  # initial pid and network namespaces and block loading of unsigned\n"
+"  # modules and other automatic module operations.\n"
 "  kmodlock --profile=baseline --block=autoload_module,unsigned_module\n\n"
 "  # Restricted profile: deny loading kernel modules for all.\n"
 "  kmodlock ---profile=restricted\n";
 
 static const struct argp_option opts[] = {
         { "profile", 'p', "PROFILE", 0, "Profile to apply, one of the following: allow, baseline or restricted. Default value is: allow." },
-        { "block", 'b', "CMD", 0, "Block module operations, possible values: 'load_module, unload_module, autoload_module, unsigned_module, unsafe_module_parameters' " },
+        { "block", 'b', "CMDs", 0, "Block module commands, possible values: 'load_module, autoload_module, unsigned_module, unsafe_module_parameters' " },
+        /*
         { "rootfs", 'f', NULL, 0, "Allow module operations only if the modules originate from the root filesystem."},
         { "ro", 'r', NULL, 0, "Allow module operations only if the root filesystem is mounted read-only"},
         { "ro-dev", 'd', NULL, 0, "Allow module operations only if the filesystem is backed by a read-only device."},
+        */
+        { "maps-filter", 'm', "cgroupmap,pidnsmap,netnsmap", 0, "Baseline map filter to allow tasks that are in these maps to perform module operations."},
+        { "debug", 'd', NULL, 0, "Send debug output to '/sys/kernel/debug/tracing/trace_pipe'" },
         { NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
         {},
 };
@@ -70,12 +78,22 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
                 }
                 opt.block_op = strndup(arg, strlen(arg));
                 break;
+        case 'd':
+                opt.debug = true;
+                break;
         case 'p':
                 if (strlen(arg) + 1 > 64) {
                         fprintf(stderr, "invaild -p|--profile argument: too long\n");
                         argp_usage(state);
                 }
                 opt.perm = strndup(arg, strlen(arg));
+                break;
+        case 'm':
+                if (strlen(arg) + 1 > 128) {
+                        fprintf(stderr, "invaild -m|--maps-filter argument: too long\n");
+                        argp_usage(state);
+                }
+                opt.maps_filter_str = strndup(arg, strlen(arg));
                 break;
         default:
                 return ARGP_ERR_UNKNOWN;
@@ -84,17 +102,26 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
         return 0;
 }
 
-/* Setup bpf map options */
-static int setup_km_opt_map(struct kmodlock_bpf *skel, int *fd)
+static int pre_setup_bpf_args_map(struct kmodlock_bpf *skel)
 {
-        uint32_t perm_k = BPFLOCK_KM_PERM;
-        uint32_t op_k = BPFLOCK_KM_OP;
+        if (!opt.debug)
+                return 0;
+
+        skel->rodata->debug = true;
+
+        return 0;
+}
+
+static int setup_bpf_args_map(struct kmodlock_bpf *skel)
+{
+        uint32_t key = KMODLOCK_PROFILE, val = 0;
         int f;
 
         opt.perm_int = 0;
         opt.block_op_int = 0;
+        opt.filter_int = 0;
 
-        f = bpf_map__fd(skel->maps.disablemods_map);
+        f = bpf_map__fd(skel->maps.kmodlock_args_map);
         if (f < 0) {
                 fprintf(stderr, "%s: error: failed to get bpf map fd: %d\n",
                         LOG_BPFLOCK, f);
@@ -128,51 +155,35 @@ static int setup_km_opt_map(struct kmodlock_bpf *skel, int *fd)
                         opt.block_op_int |= BPFLOCK_KM_UNSAFEMOD;
         }
 
-        *fd = f;
-
-        bpf_map_update_elem(f, &perm_k, &opt.perm_int, BPF_ANY);
-        if (opt.block_op_int > 0)
-                bpf_map_update_elem(f, &op_k, &opt.block_op_int, BPF_ANY);
-
-        return 0;
-}
-
-static int setup_km_env_map(struct kmodlock_bpf *skel, int *fd)
-{
-        int err;
-        int f;
-
-        if (*fd > 0)
-                return 0;
-
-        f = bpf_map__fd(skel->maps.disablemods_ns_map);
-        if (f < 0) {
-                fprintf(stderr, "%s: error: failed to get ns map fd: %d\n",
-                        LOG_BPFLOCK, f);
-                return f;
+        bpf_map_update_elem(f, &key, &opt.perm_int, BPF_ANY);
+        if (opt.block_op_int > 0) {
+                key = KMODLOCK_BLOCK_OP;
+                bpf_map_update_elem(f, &key, &opt.block_op_int, BPF_ANY);
         }
 
-        *fd = f;
+        if (opt.maps_filter_str) {
+                if (strstr(opt.maps_filter_str, "pidnsmap") != NULL)
+                        opt.filter_int |= BPFLOCK_P_FILTER_PIDNS;
+                if (strstr(opt.maps_filter_str, "netnsmap") != NULL)
+                        opt.filter_int |= BPFLOCK_P_FILTER_NETNS;
+                if (strstr(opt.maps_filter_str, "cgroupmap") != NULL)
+                        opt.filter_int |= BPFLOCK_P_FILTER_CGROUP;
 
-        return err;
-}
+                if (!opt.filter_int) {
+                        fprintf(stderr, "%s: error: failed to parse --maps-filter invalid value.\n",
+                               LOG_BPFLOCK);
+                        return -EINVAL;
+                }
+        } else {
+                opt.filter_int |= BPFLOCK_P_FILTER_PIDNS;
+        }
 
-static int setup_km_env_sbroot(struct kmodlock_bpf *skel, int *fd)
-{
-        struct bl_stat lstat;
-        struct stat st;
-        int ret, k = BPFLOCK_KM_SB;
+        key = KMODLOCK_MAPS_FILTER;
+        bpf_map_update_elem(f, &key, &opt.filter_int, BPF_ANY);
 
-        if (*fd <= 0) 
-                return -EINVAL;
-
-        ret = stat_sb_root(&st);
-        if (ret < 0)
-                return ret;
-
-        lstat.st_dev = st.st_dev;
-
-        bpf_map_update_elem(*fd, &k, &lstat, BPF_ANY);
+        key = KMODLOCK_DEBUG;
+        val = opt.debug ? 1 : 0;
+        bpf_map_update_elem(f, &key, &val, BPF_ANY);
 
         return 0;
 }
@@ -186,12 +197,11 @@ int main(int argc, char **argv)
         };
 
         struct kmodlock_bpf *skel = NULL;
-        struct bpf_link *link = NULL;
         struct bpf_program *prog = NULL;
-        int kmodlock_map_fd = -1, ns_map_fd = -1;
+        struct bpf_object *obj = NULL;
         struct stat st;
         char *buf = NULL;
-        int err, i, buflen = 512;
+        int err, i;
 
         err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
         if (err)
@@ -211,22 +221,22 @@ int main(int argc, char **argv)
                 return err;
         }
 
-        err = stat(dmodules_security_map.pin_path, &st);
+        err = stat(kmodlock_security_map.pin_path, &st);
         if (err == 0) {
                 fprintf(stdout, "%s: %s already loaded nothing todo, please delete pinned file '%s' "
                         "to be able to run it again.\n",
-                        LOG_BPFLOCK, argv[0], dmodules_security_map.pin_path);
+                        LOG_BPFLOCK, LOG_KMODLOCK, kmodlock_security_map.pin_path);
                 return -EALREADY;
         }
 
-        buf = malloc(buflen);
+        buf = malloc(128);
         if (!buf) {
-                fprintf(stderr, "%s: error: failed to allocate memory\n",
-                        LOG_BPFLOCK);
+                fprintf(stderr, "%s: %s: error: failed to allocate memory\n",
+                        LOG_BPFLOCK, LOG_KMODLOCK);
                 return -ENOMEM;
         }
 
-        memset(buf, 0, buflen);
+        memset(buf, 0, 128);
 
         skel = kmodlock_bpf__open();
         if (!skel) {
@@ -236,6 +246,14 @@ int main(int argc, char **argv)
                 goto cleanup;
         }
 
+        err = bpf_reuse_shared_maps(obj);
+        if (err < 0) {
+                fprintf(stderr, "%s: %s: failed to reuse shared bpf maps: %d\n",
+                        LOG_BPFLOCK, LOG_KMODLOCK, err);
+        }
+
+        pre_setup_bpf_args_map(skel);
+
         err = kmodlock_bpf__load(skel);
         if (err) {
                 fprintf(stderr, "%s: error: failed to load BPF skelect: %d\n",
@@ -243,82 +261,65 @@ int main(int argc, char **argv)
                 goto cleanup;
         }
 
-        err = setup_km_opt_map(skel, &kmodlock_map_fd);
+        err = setup_bpf_args_map(skel);
         if (err < 0) {
                 fprintf(stderr, "%s: error: failed to setup bpf opt map: %d\n",
                         LOG_BPFLOCK, err);
                 goto cleanup;
         }
 
-        err = setup_km_env_map(skel, &ns_map_fd);
+        err = push_host_init_ns(skel->maps.bpflock_pidnsmap);
         if (err < 0) {
-                fprintf(stderr, "%s: error: failed to setup bpf env map: %d\n",
-                        LOG_BPFLOCK, err);
-                goto cleanup;
-        }
-
-        err = setup_km_env_sbroot(skel, &ns_map_fd);
-        if (err < 0) {
-                fprintf(stderr, "%s: error: failed to setup bpf super block env: %d\n",
-                        LOG_BPFLOCK, err);
+                fprintf(stderr, "%s: %s: error: failed to setup bpf shared maps: %d\n",
+                        LOG_BPFLOCK, LOG_KMODLOCK, err);
                 goto cleanup;
         }
 
         mkdir(BPFLOCK_PIN_PATH, 0700);
-        mkdir(dmodules_security_map.pin_path, 0700);
+        mkdir(kmodlock_security_map.pin_path, 0700);
 
-        err = bpf_object__pin(skel->obj, dmodules_security_map.pin_path);
+        err = bpflock_bpf_object__pin(skel->obj, kmodlock_security_map.pin_path);
         if (err) {
-                libbpf_strerror(err, buf, buflen);
+                libbpf_strerror(err, buf, sizeof(buf));
                 fprintf(stderr, "%s: %s: error: failed to pin obj into link '%s': %s\n",
-			LOG_BPFLOCK, LOG_KMODLOCK, dmodules_security_map.pin_path, buf);
+                        LOG_BPFLOCK, LOG_KMODLOCK, kmodlock_security_map.pin_path, buf);
                 goto cleanup;
         }
 
         i = 0;
         bpf_object__for_each_program(prog, skel->obj) {
-                if (i >= sizeof(dmodules_prog_links) / sizeof(bpflock_class_prog_link_t))
-                        break;
-
-                link = bpf_program__attach(prog);
+                struct bpf_link *link = bpf_program__attach(prog);
                 err = libbpf_get_error(link);
                 if (err) {
-                        libbpf_strerror(err, buf, buflen);
+                        libbpf_strerror(err, buf, sizeof(buf));
                         fprintf(stderr, "%s: %s: error: failed to attach BPF programs: %s\n",
                                 LOG_BPFLOCK, LOG_KMODLOCK, strerror(-err));
                         goto cleanup;
                 }
 
-                err = bpf_link__pin(link, dmodules_prog_links[i].link);
+                err = bpf_link__pin(link, kmodlock_prog_links[i].link);
                 if (err) {
-                        libbpf_strerror(err, buf, buflen);
+                        libbpf_strerror(err, buf, sizeof(buf));
                         fprintf(stderr, "%s: %s: error: failed to pin bpf obj into link '%s': %s\n",
-                                LOG_BPFLOCK, LOG_KMODLOCK, dmodules_prog_links[i].link, buf);
+                                LOG_BPFLOCK, LOG_KMODLOCK, kmodlock_prog_links[i].link, buf);
                         goto cleanup;
                 }
-
                 i++;
         }
 
         if (opt.perm_int == BPFLOCK_P_RESTRICTED) {
                 printf("%s: success: profile: restricted - kernel module load operations are now disabled - delete pinned file '%s' to re-enable\n",
-                        LOG_BPFLOCK, dmodules_security_map.pin_path);
+                        LOG_BPFLOCK, kmodlock_security_map.pin_path);
         } else if (opt.perm_int == BPFLOCK_P_BASELINE) {
-                printf("%s: success: profile: baseline - kernel module load operations are now restricted only to initial pid namespace - delete pinned file '%s' to re-enable\n",
-                        LOG_BPFLOCK, dmodules_security_map.pin_path);
+                printf("%s: success: profile: baseline - kernel module load operations are now restricted only to initial namespaces - delete pinned file '%s' to re-enable\n",
+                        LOG_BPFLOCK, kmodlock_security_map.pin_path);
         } else {
-                printf("%s: success: profile : allow - kernel module load operations are allowed - delete pinned file '%s' to disable access logging\n",
-                        LOG_BPFLOCK, dmodules_security_map.pin_path);
+                printf("%s: success: profile: allow - kernel module load operations are allowed - delete pinned file '%s' to disable access logging\n",
+                        LOG_BPFLOCK, kmodlock_security_map.pin_path);
         }
 
 cleanup:
-        if (link)
-                bpf_link__destroy(link);
-
-        if (skel)
-                kmodlock_bpf__destroy(skel);
-
+        kmodlock_bpf__destroy(skel);
         free(buf);
-
-        return err != 0;
+        return err;
 }
