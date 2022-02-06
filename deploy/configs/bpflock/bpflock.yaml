@@ -18,12 +18,6 @@ agent-health-port: 19876
 # -- Gops server TCP port
 gops-port: 19890
 
-# -- Enable/disable serving the pprof debugging API
-pprof: true
-
-# -- PProfPort is the port that the pprof listens on
-pprof-port: 6060
-
 # -- Directory path to store variable runtime environment
 lib-dir: /var/lib/bpflock
 
