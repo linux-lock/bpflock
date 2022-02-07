@@ -22,11 +22,11 @@ msg = @printf '  %-8s %s%s\n' "$(1)" "$(notdir $(2))" "$(if $(3), $(3))";
 # MAKEFLAGS += --no-print-directory
 endif
 
-        #kmodlock
-        # kimglock
 TARGETS = \
         bpfrestrict \
         filelesslock \
+        kmodlock \
+        kimglock
         #
 
 COMMON_OBJ = \
