@@ -50,57 +50,70 @@ in the initial [pid namespace](https://man7.org/linux/man-pages/man7/pid_namespa
   - `baseline` : restrictive profile where access is denied for all processes, except privileged applications and containers that run in the host pid and network namespaces, or applications that are present in the allow `bpflock_cgroupmap`.
   - `restricted`: direct and indirect access to a running kernel image is denied for all processes and containers.
  
-* Blocked access:
-
-  Under baseline profile, the kernel image lock-down will be enforced for all processes that are not in the initial pid and network namespaces, and [kernel features](https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#1-kernel-image-lock-down) to modify the running kernel are blocked. Special access exceptions can be set to allow some specific use cases.
-
-* Baseline profile access exceptions:
-   
-  A coma-separated list of allowed features for the rest of all processes that are not in the initial pid namespace can be specified:
-  - `unsigned_module` : allow unsigned module loading.
-  - `unsafe_module_parameters` : allow module parameters that directly specify hardware
+* In case the profile is `allow` or `baseline`, a comma-separated list of operations to block can be specified:
+  - `unsigned_module` : block unsigned module loading.
+  - `unsafe_module_parameters` : block module with parameters that directly specify hardware
         parameters to drivers 
-  - `dev_mem` : access to /dev/{mem,kmem,port} is allowed.
-  - `kexec` : kexec of unsigned images is allowed.
-  - `hibernation` : hibernation is allowed.
-  - `pci_access` : allow direct PCI BAR access.
-  - `ioport` : raw io port access is allowed.
-  - `msr` : raw msr access is allowed.
-  - `mmiotrace` : tracing memory mapped I/O is allowed.
-  - `debugfs` : debugfs is allowed.
-  - `xmon_rw` : xmon write access is allowed.
-  - `bpf_write` : use of bpf write to user RAM is allowed.
+  - `dev_mem` : access to /dev/{mem,kmem,port} is blocked.
+  - `kexec` : kexec of unsigned images is blocked.
+  - `hibernation` : hibernation is blocked.
+  - `pci_access` : block direct PCI BAR access.
+  - `ioport` : raw io port access is blocked.
+  - `msr` : raw msr access is blocked.
+  - `mmiotrace` : tracing memory mapped I/O is blocked.
+  - `debugfs` : debugfs is blocked.
+  - `xmon_rw` : xmon write access is blocked.
+  - `bpf_write` : block bpf write to user RAM .
 
 
 `kimglock` examples:
 
 * Allow profile: kernel image access is allowed.
   ```bash
-  bpflock --kimglock-profile=none
-  bpflock --kimglock-profile=allow
-  bpflock --kimglock-profile=privileged
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+  ```
+  
+  ```bash
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_KIMGLOCK_PROFILE=allow" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
-* Baseline profile: access is allowed only for processes in the initial pid namespace.
+* Baseline profile: access is allowed only for processes in the initial pid and network namespaces.
   ```bash
-  bpflock --kimglock-profile=baseline
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_KIMGLOCK_PROFILE=baseline" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
-* Baseline profile: access is allowed only for processes in the initial pid namespace. Access from all other processes is denied with exceptions to access debugfs, raw I/O port and loading of unsigned modules operations.
+* Baseline profile: access is allowed only for processes in the initial pid and network namespaces, but debugfs, raw I/O port and loading of unsigned modules operations are blocked.
   ```bash
-  bpflock --kimglock-profile=baseline \
-    --kimglock-allow=debugfs,ioport,unsigned_module
-  ``` 
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_KIMGLOCK_PROFILE=baseline" \
+    -e "BPFLOCK_KIMGLOCK_BLOCK=debugfs,ioport,unsigned_module" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+  ```
 
-* Baseline profile: access is allowed only for processes in the initial pid namespace. Access from all other processes is denied with an exception to allow only the bpf writes to user RAM operation.
-
+* Baseline profile: access is allowed only for processes in the initial pid and network namespaces, but the bpf writes to user RAM operation is denied for all.
   ```bash
-  bpflock --kimglock-profile=baseline --kimglock-allow=bpf_write
-  ``` 
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_KIMGLOCK_PROFILE=baseline" \
+    -e "BPFLOCK_KIMGLOCK_BLOCK=bpf_write" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+  ```
 
 * Restricted profile: direct and indirect access to a running kernel image is denied for all processes.
   ```bash
-  bpflock --kimglock-profile=restricted
+  docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
+    -e "BPFLOCK_KIMGLOCK_PROFILE=restricted" \
+    -v /sys/kernel/:/sys/kernel/ \
+    -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
 ### 1.3 Disable kimglock
