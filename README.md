@@ -165,30 +165,44 @@ To apply [Kernel Modules Protection](https://github.com/linux-lock/bpflock/tree/
 run with environment variable `BPFLOCK_KMODLOCK_PROFILE=baseline` or `BPFLOCK_KMODLOCK_PROFILE=restricted`:
 ```bash
 docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
-  -e "BPFLOCK_KMODLOCK_PROFILE=baseline" \
+  -e "BPFLOCK_KMODLOCK_PROFILE=restricted" \
   -v /sys/kernel/:/sys/kernel/ \
   -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
 ```
 
 Example:
 ```bash
-$ sudo unshare -f -p bash
+$ sudo unshare -p -n -f
 # modprobe xfs
 modprobe: ERROR: could not insert 'xfs': Operation not permitted
 ```
 
 ```
-modprobe-399022  [002] d...1 427205.192790: bpf_trace_printk: bpflock bpf=kmodlock pid=399022 event=module load from non init pid namespace status=denied (baseline)
+time="2022-02-07T06:50:25+01:00" level=info msg="event=syscall_execve tgid=52323 pid=52323 ppid=52288 uid=0 cgroupid=7014 comm=modprobe pcomm=bash filename=/usr/sbin/modprobe retval=0" bpfprog=execsnoop subsys=bpf
+
+time="2022-02-07T06:50:25+01:00" level=info msg="event=lsm_kernel_read_file operation=loading module tgid=52323 pid=52323 ppid=52288 uid=0 cgroupid=7014 comm=modprobe pcomm=bash filename=xfs.ko retval=-1 reason=denied (restricted)" bpfprog=kmodlock subsys=bpf
 ```
 
 #### Kernel Image Lock-down
 
-To apply [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down) run with environment variable `BPFLOCK_KIMGLOCK_PROFILE=baseline` or `BPFLOCK_KIMGLOCK_PROFILE=restricted`:
+To apply [Kernel Image Lock-down](https://github.com/linux-lock/bpflock/tree/main/docs/memory-protections.md#1-kernel-image-lock-down) run with environment variable `BPFLOCK_KIMGLOCK_PROFILE=baseline`:
 ```bash
 docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
   -e "BPFLOCK_KIMGLOCK_PROFILE=baseline" \
   -v /sys/kernel/:/sys/kernel/ \
   -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
+```
+
+```bash
+$ sudo unshare -f -p -n bash
+# head -c 1 /dev/mem
+head: cannot open '/dev/mem' for reading: Operation not permitted
+```
+
+```
+time="2022-02-07T06:57:22+01:00" level=info msg="event=syscall_execve tgid=52428 pid=52428 ppid=52288 uid=0 cgroupid=7014 comm=head pcomm=bash filename=/usr/bin/head retval=0" bpfprog=execsnoop subsys=bpf
+
+time="2022-02-07T06:57:22+01:00" level=info msg="event=lsm_locked_down operation=/dev/mem,kmem,port tgid=52428 pid=52428 ppid=52288 uid=0 cgroupid=7014 comm=head pcomm=bash retval=-1 reason=denied (baseline)" bpfprog=kimglock subsys=bpf
 ```
 
 #### BPF Protection
@@ -208,7 +222,6 @@ $ sudo unshare -f -p -n bash
 Error: can't get next program: Operation not permitted
 ```
 
-Example output of denied operation failed with -1 -EPERM:
 ```
 time="2022-02-04T15:40:56Z" level=info msg="event=lsm_bpf tgid=2378 pid=2378 ppid=2364 uid=0 cgroupid=9458 comm=bpftool pcomm=bash filename= retval=-1 reason=baseline" bpfprog=bpfrestrict subsys=bpf
 
