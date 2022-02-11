@@ -16,12 +16,13 @@ kernel image, attempting to protect against unauthorized access.
 It combines the several Linux features including [kernel lockdown](https://man7.org/linux/man-pages/man7/kernel_lockdown.7.html) and other LSMs to restrict
 unauthorized modification of the kernel image at runtime.
 
+kimglock does not replace the upstream kernel Lockdown, as the later is more effective, restrictive and covers "trusting the kernel" problem. However, a subset of these restrictions used here are useful to restrict kernel image modification without breaking privileged applications/containers.
+
 After pinning the corresponding bpf program, kimglock will exit.
 
 **Note: restrictions and protections are still a moving target, since the Linux kernel offer multiple access entries to modify the running image, it is hard to track all of them, however they will be added as they are discovered.**
 
-kimglock is able to completely block or allow access from the
-in the initial [pid namespace](https://man7.org/linux/man-pages/man7/pid_namespaces.7.html) only to the following:
+kimglock is able to completely block access to:
 
   - Loading of unsigned modules.
   - Unsafe usage of module parameters.
@@ -90,6 +91,11 @@ in the initial [pid namespace](https://man7.org/linux/man-pages/man7/pid_namespa
     -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
 
+  ```
+   time="2022-02-07T06:57:22+01:00" level=info msg="event=lsm_locked_down operation=/dev/mem,kmem,port tgid=52428 pid=52428 ppid=52288 uid=0 cgroupid=7014 comm=head pcomm=bash retval=-1 reason=denied (baseline)" bpfprog=kimglock subsys=bpf
+  ```
+
+
 * Baseline profile: access is allowed only for processes in the initial pid and network namespaces, but debugfs, raw I/O port and loading of unsigned modules operations are blocked.
   ```bash
   docker run --name bpflock -it --rm --cgroupns=host --pid=host --privileged \
@@ -115,6 +121,12 @@ in the initial [pid namespace](https://man7.org/linux/man-pages/man7/pid_namespa
     -v /sys/kernel/:/sys/kernel/ \
     -v /sys/fs/bpf:/sys/fs/bpf linuxlock/bpflock
   ```
+
+  bpflock logs:
+  ```
+   time="2022-02-11T12:39:40Z" level=info msg="event=lsm_locked_down operation=/dev/mem,kmem,port tgid=71179 pid=71179 ppid=70895 uid=0 cgroupid=7014 comm=head pcomm=bash retval=-1 reason=denied (restricted)" bpfprog=kimglock subsys=bpf
+  ```
+
 
 ### 1.3 Disable kimglock
 
