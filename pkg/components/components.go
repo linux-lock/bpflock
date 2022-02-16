@@ -20,6 +20,24 @@ const (
 	ExecSnoop    = "execsnoop"
 )
 
+var (
+	BpfProgDescriptions = map[string]string{
+		ExecSnoop:    "Trace process exec()",
+		FilelessLock: "Restrict fileless binary execution",
+		KimgLock:     "Restrict both direct and indirect modification to a running kernel image",
+		KmodLock:     "Restrict kernel module operations on modular kernels",
+		BpfRestrict:  "Restrict access to the bpf() system call",
+	}
+)
+
+func IsBpfProgInternal(name string) bool {
+	switch name {
+	case ExecSnoop:
+		return true
+	}
+	return false
+}
+
 // IsBpflockAgent checks whether the current process is bpflock (daemon).
 func IsBpflockAgent() bool {
 	binaryName := os.Args[0]
