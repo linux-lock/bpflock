@@ -7,8 +7,11 @@
 package execsnoop
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -16,6 +19,7 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 
 	"github.com/linux-lock/bpflock/bpf/gobpf/bpfevents"
+	"github.com/linux-lock/bpflock/bpf/gobpf/bpfprogs"
 
 	"github.com/linux-lock/bpflock/pkg/components"
 	"github.com/linux-lock/bpflock/pkg/defaults"
@@ -66,29 +70,45 @@ type ExecSnoopBpf struct {
 	pinPath string
 
 	args []string
+
+	attachOnce  sync.Once
+	destroyOnce sync.Once
+	attached    bool
 }
 
-func NewBpf() (*ExecSnoopBpf, error) {
+func init() {
+	bpfprogs.Register(bpfProgram, Init)
+}
+
+func Init() (bpfprogs.BpfProg, error) {
 	return &ExecSnoopBpf{
 		name:        components.ExecSnoop,
-		description: "trace process exec()",
+		description: components.BpfProgDescriptions[components.ExecSnoop],
 		args:        make([]string, 0),
 	}, nil
 }
 
-func (e *ExecSnoopBpf) GetName() string {
+func (e *ExecSnoopBpf) SetPinPath(pinPath string) {
+	e.pinPath = pinPath
+}
+
+func (e *ExecSnoopBpf) Name() string {
 	return e.name
 }
 
-func (e *ExecSnoopBpf) GetDescription() string {
+func (e *ExecSnoopBpf) Description() string {
 	return e.description
+}
+
+func (e *ExecSnoopBpf) SetArgs(args []string) {
+	e.args = args
 }
 
 func (e *ExecSnoopBpf) GetArgs() []string {
 	return e.args
 }
 
-func (e *ExecSnoopBpf) Load(pinPath string) error {
+func (e *ExecSnoopBpf) Load() error {
 	// Load pre-compiled programs and maps into the kernel.
 	objs := bpfObjects{}
 
@@ -99,7 +119,7 @@ func (e *ExecSnoopBpf) Load(pinPath string) error {
 
 	if err := loadBpfObjects(&objs, &ebpf.CollectionOptions{
 		Maps: ebpf.MapOptions{
-			PinPath: pinPath,
+			PinPath: e.pinPath,
 		},
 	}); err != nil {
 		log.WithError(err).Errorf("loading '%s' objects failed", e.name)
@@ -107,12 +127,20 @@ func (e *ExecSnoopBpf) Load(pinPath string) error {
 	}
 
 	e.objs = objs
-	e.pinPath = pinPath
 
 	return nil
 }
 
-func (e *ExecSnoopBpf) SetArgs(traceTarget string) error {
+func (e *ExecSnoopBpf) setupMaps() error {
+	target := ""
+
+	// We support only one argument for now
+	a := strings.Split(e.args[0], "=")
+	if len(a) != 2 {
+		return nil
+	}
+	target = a[1]
+
 	key := uint32(ExecSnoopTraceTarget)
 	path := filepath.Join(e.pinPath, ExecSnoopArgsMap)
 	loadOpts := &ebpf.LoadPinOptions{}
@@ -123,7 +151,7 @@ func (e *ExecSnoopBpf) SetArgs(traceTarget string) error {
 		return nil
 	}
 
-	switch traceTarget {
+	switch target {
 	case defaults.ExecSnoopByFilter:
 		value := uint32(ExecSnoopTraceByFilter)
 		err = m.Put(key, value)
@@ -133,20 +161,38 @@ func (e *ExecSnoopBpf) SetArgs(traceTarget string) error {
 	}
 
 	if err != nil {
-		log.Warnf("Execsnoop ignored, updating map '%s' failed: %v", path, err)
+		log.Warnf("bpf program %s ignored, updating map '%s' failed: %v", e.Name(), path, err)
 		return nil
 	}
-
-	e.args = append(e.args, traceTarget)
 
 	return nil
 }
 
-func (e *ExecSnoopBpf) Attach(target string) error {
+func (e *ExecSnoopBpf) Attach() error {
+	if e.attached {
+		return nil
+	}
+
+	e.attachOnce.Do(func() {
+		err := e.attach()
+		if err != nil {
+			log.WithError(err).Warnf("attach bpf program '%s' failed", e.Name())
+		}
+	})
+
+	if e.attached == false {
+		return fmt.Errorf("attach bpf program %s failed", e.Name())
+	}
+
+	return nil
+}
+
+func (e *ExecSnoopBpf) attach() error {
+	e.attached = true
 	tp, err := link.Tracepoint("syscalls", "sys_enter_execve",
 		e.objs.TracepointSyscallsSysEnterExecve)
 	if err != nil {
-		e.Detach()
+		e.Destroy()
 		log.WithError(err).Errorf("opening tracepoint 'sys_enter_execve' failed")
 		return err
 	}
@@ -156,15 +202,16 @@ func (e *ExecSnoopBpf) Attach(target string) error {
 	tp, err = link.Tracepoint("syscalls", "sys_exit_execve",
 		e.objs.TracepointSyscallsSysExitExecve)
 	if err != nil {
-		e.Detach()
+		e.Destroy()
 		log.WithError(err).Errorf("opening tracepoint 'sys_exit_execve' failed")
+		return err
 	}
 	e.sysExitExecve = tp
 
 	tp, err = link.Tracepoint("syscalls", "sys_enter_execveat",
 		e.objs.TracepointSyscallsSysEnterExecveat)
 	if err != nil {
-		e.Detach()
+		e.Destroy()
 		log.WithError(err).Errorf("opening tracepoint 'sys_enter_execveat' failed")
 		return err
 	}
@@ -173,22 +220,22 @@ func (e *ExecSnoopBpf) Attach(target string) error {
 	tp, err = link.Tracepoint("syscalls", "sys_exit_execveat",
 		e.objs.TracepointSyscallsSysExitExecveat)
 	if err != nil {
-		e.Detach()
+		e.Destroy()
 		log.WithError(err).Errorf("opening tracepoint 'sys_exit_execveat' failed")
 		return err
 	}
 	e.sysExitExecveAt = tp
 
-	err = e.SetArgs(target)
+	err = e.setupMaps()
 	if err != nil {
-		e.Detach()
-		log.WithError(err).Errorf("setArgs() failed")
+		e.Destroy()
+		log.WithError(err).Errorf("setupMaps() failed")
 		return err
 	}
 
 	rd, err := ringbuf.NewReader(e.objs.BpflockEvents)
 	if err != nil {
-		e.Detach()
+		e.Destroy()
 		log.WithError(err).Errorf("opening ringbuffer reader")
 		return err
 	}
@@ -197,23 +244,23 @@ func (e *ExecSnoopBpf) Attach(target string) error {
 	return nil
 }
 
-func (e *ExecSnoopBpf) GetRingBufferPath() string {
+func (e *ExecSnoopBpf) GetOutputBufPath() string {
 	return filepath.Join(e.pinPath, bpfevents.SharedEvents)
 }
 
-func (e *ExecSnoopBpf) GetRingBuffer() *ringbuf.Reader {
+func (e *ExecSnoopBpf) GetOutputBuf() *ringbuf.Reader {
 	return e.ring
 }
 
-func (e *ExecSnoopBpf) CloseBuffer() {
+func (e *ExecSnoopBpf) closeBuffer() {
 	if e.ring != nil {
 		e.ring.Close()
 		e.ring = nil
 	}
 }
 
-// UnpinLocalMaps removes non shared maps only
-func (e *ExecSnoopBpf) UnpinLocalMaps() {
+// unpinLocalMaps removes non shared maps only
+func (e *ExecSnoopBpf) unpinLocalMaps() {
 	pinnedMap := filepath.Join(e.pinPath, "bpflock_execsnoop_storage")
 	log.Infof("Cleaning remove bpf-map=%s", pinnedMap)
 	os.RemoveAll(pinnedMap)
@@ -223,7 +270,7 @@ func (e *ExecSnoopBpf) UnpinLocalMaps() {
 	os.RemoveAll(pinnedMap)
 }
 
-func _ExecSnoopCloseLinks(links ...link.Link) {
+func _execSnoopCloseLinks(links ...link.Link) {
 	for _, l := range links {
 		if l != nil {
 			l.Close()
@@ -233,7 +280,7 @@ func _ExecSnoopCloseLinks(links ...link.Link) {
 }
 
 func (e *ExecSnoopBpf) closeLinks() {
-	_ExecSnoopCloseLinks(
+	_execSnoopCloseLinks(
 		e.sysEnterExecve,
 		e.sysEnterExecveAt,
 		e.sysExitExecve,
@@ -241,16 +288,21 @@ func (e *ExecSnoopBpf) closeLinks() {
 	)
 }
 
-// CloseExecSnoop remove and detach execsnoop resources
-func (e *ExecSnoopBpf) Detach() {
-	e.CloseBuffer()
+// Detach remove and detach execsnoop program
+func (e *ExecSnoopBpf) detach() {
+	e.closeBuffer()
 	e.closeLinks()
 	e.objs.Close()
-	log.Infof("Cleaning remove bpf-program=%s", e.GetName())
+	log.Infof("Cleaning remove bpf-program=%s", e.Name())
 }
 
-// Clean  cleans up everything related to execsnoop and closes ring buffer
+// Destroy  cleans up everything related to execsnoop and remove ring buffer
 func (e *ExecSnoopBpf) Destroy() {
-	e.Detach()
-	e.UnpinLocalMaps()
+	if e.attached {
+		e.destroyOnce.Do(func() {
+			e.detach()
+			e.unpinLocalMaps()
+		})
+		e.attached = false
+	}
 }

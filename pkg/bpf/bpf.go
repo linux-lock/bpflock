@@ -14,14 +14,18 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/cilium/ebpf/ringbuf"
 
+	"github.com/linux-lock/bpflock/api/v1/models"
 	"github.com/linux-lock/bpflock/bpf/gobpf/bpfevents"
-	"github.com/linux-lock/bpflock/bpf/gobpf/execsnoop"
+	"github.com/linux-lock/bpflock/bpf/gobpf/bpfprogs"
+
+	// Register embedded bpf programs
+	_ "github.com/linux-lock/bpflock/bpf/gobpf/execsnoop"
 
 	"github.com/linux-lock/bpflock/pkg/command/exec"
+	"github.com/linux-lock/bpflock/pkg/components"
 	"github.com/linux-lock/bpflock/pkg/defaults"
 	"github.com/linux-lock/bpflock/pkg/logging"
 	"github.com/linux-lock/bpflock/pkg/logging/logfields"
@@ -38,14 +42,7 @@ type RingBufferInfo struct {
 var (
 	log = logging.DefaultLogger.WithField(logfields.LogSubsys, "bpf")
 
-	bpfProgramsPath = filepath.Join(defaults.ProgramLibPath, "bpf")
-	bpftool         = filepath.Join(defaults.ProgramLibPath, "bpftool")
-
-	loadEmbeddedBpf    sync.Once
-	destroyEmbeddedBpf sync.Once
-
-	ExecSnoop *execsnoop.ExecSnoopBpf
-	loaded    = false
+	bpftool = filepath.Join(defaults.ProgramLibPath, "bpftool")
 
 	// Readers will be closed by their corresponding programs
 	EventReaders = make(map[string]*RingBufferInfo, 0)
@@ -118,49 +115,60 @@ func bpftoolGetProgID(progName string) (string, error) {
 	return progID[0], nil
 }
 
-// bpfLoadEmbeddedProgs will load local embedded bpf programs
-func AttachEmbeddedProgs() error {
-	if loaded {
-		return nil
-	}
+func runBpfProgram(p *models.BpfProgram) error {
+	var loader string
 
-	loadEmbeddedBpf.Do(func() {
-		e, _ := execsnoop.NewBpf()
-		err := e.Load(GetMapRoot())
-		name := e.GetName()
+	// Run c based bpf programs loaded with libbpf
+	if p.Command != components.BpflockAgentName {
+		loader = filepath.Join(option.Config.BpfDir, p.Command)
+		_, err := os.Stat(loader)
 		if err != nil {
-			log.WithError(err).Fatalf("Load embedded bpf program '%s' failed", name)
-		}
-		err = e.Attach(option.Config.ExecSnoopTarget)
-		if err != nil {
-			log.WithError(err).Fatalf("Attach embedded bpf program '%s' failed", name)
+			log.WithError(err).Warnf("run bpf program '%s' failed: unable to find loader '%q'", p.Name, loader)
+			return err
 		}
 
-		// Now lets set proper arguments
+		_, err = exec.WithTimeout(defaults.ShortExecTimeout, loader, p.Args...).CombinedOutput(log, true)
+		if err != nil {
+			// Let's not fail execution but report it
+			log.WithError(err).Warnf("run bpf program '%s' with '%q' failed", p.Name, loader)
+			return err
+		}
+	} else {
+		// Run embededd golang bpf programs
+		loader = filepath.Join(defaults.ProgramLibPath, p.Command)
+		prog, err := bpfprogs.NewProgram(p.Name)
+		if err != nil {
+			log.WithError(err).Warnf("initialize bpf program '%s' failed", p.Name)
+			return err
+		}
 
-		log.WithFields(logrus.Fields{
-			"args": e.GetArgs(),
-		}).Infof("Started bpf program %s: %s", name, e.GetDescription())
+		prog.SetPinPath(GetMapRoot())
+		prog.SetArgs(p.Args)
+
+		err = prog.Load()
+		if err != nil {
+			log.WithError(err).Warnf("Load bpf program '%s' failed", p.Name)
+			return err
+		}
+
+		err = prog.Attach()
+		if err != nil {
+			log.WithError(err).Fatalf("Attach embedded bpf program '%s' failed", prog.Name())
+			return err
+		}
 
 		info := &RingBufferInfo{
-			Ring: e.GetRingBuffer(),
-			Path: e.GetRingBufferPath(),
+			Ring: prog.GetOutputBuf(),
+			Path: prog.GetOutputBufPath(),
 		}
-		EventReaders[name] = info
-		ExecSnoop = e
-		loaded = true
-	})
-
-	return nil
-}
-
-// bpfDestroyEmbeddedProgs will detach and destroy local embedded bpf programs
-func DestroyEmbeddedProgs() error {
-	if loaded {
-		destroyEmbeddedBpf.Do(func() {
-			ExecSnoop.Destroy()
-		})
+		EventReaders[prog.Name()] = info
 	}
+
+	log.WithFields(logrus.Fields{
+		logfields.LogBpfSubsys: p.Name,
+		"loader":               loader,
+		"args":                 p.Args,
+	}).Infof("Started bpf program %s: %s", p.Name, p.Description)
 
 	return nil
 }
@@ -170,32 +178,12 @@ func DestroyEmbeddedProgs() error {
 func BpfLsmEnable() error {
 	spec := option.Config.BpfMeta.Bpfspec
 
-	err := AttachEmbeddedProgs()
-	if err != nil {
-		return fmt.Errorf("unable to attach embedded BPF programs: %v", err)
-	}
-
 	i := 0
 	for _, p := range spec.Programs {
-		loader := filepath.Join(option.Config.BpfDir, p.Command)
-		_, err := os.Stat(loader)
-		if err != nil {
-			log.WithError(err).Warnf("run bpf program '%s' failed: unable to find loader '%q'", p.Name, loader)
-			continue
+		err := runBpfProgram(p)
+		if err == nil {
+			i++
 		}
-		_, err = exec.WithTimeout(defaults.ShortExecTimeout, loader, p.Args...).CombinedOutput(log, true)
-		if err != nil {
-			// Let's not fail execution but report it
-			log.WithError(err).Warnf("run bpf program '%s' with '%q' failed: %v", p.Name, loader, err)
-			continue
-		}
-
-		log.WithFields(logrus.Fields{
-			logfields.LogBpfSubsys: p.Name,
-			"loader":               loader,
-			"args":                 p.Args,
-		}).Infof("Started bpf program %s: %s", p.Name, p.Description)
-		i++
 	}
 
 	if i == 0 {
@@ -205,7 +193,11 @@ func BpfLsmEnable() error {
 	return nil
 }
 
-// BpfLsmDisable will detach any bpf programs and unloads them.
+func DestroyEmbeddedProgs() {
+	bpfprogs.DestroyPrograms()
+}
+
+// BpfLsmDisable will detach any bpf programs and unload them.
 // All the programs and maps associated with it will be deleted
 // from the bpf filesystem including shared maps
 func BpfLsmDisable() error {
@@ -214,6 +206,9 @@ func BpfLsmDisable() error {
 	if err != nil {
 		return fmt.Errorf("failed to read directory '%s': %s", p, err)
 	}
+
+	// Destroy embedded programs first
+	DestroyEmbeddedProgs()
 
 	for _, f := range files {
 		if strings.HasPrefix(f.Name(), "..") {
@@ -224,9 +219,7 @@ func BpfLsmDisable() error {
 		}
 	}
 
-	DestroyEmbeddedProgs()
-
-	// Let's detach previously shared maps and in future we will
+	// Let's detach previously shared maps and in future we should
 	// restore previous context
 	p = GetMapRoot()
 	return UnpinMaps(p, bpfevents.SharedMaps...)

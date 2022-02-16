@@ -112,11 +112,12 @@ const (
 	BpfProfilePrivileged = "privileged"
 
 	// BpfProfileBaseline is for privileged applications
-	BpfProfileBasleine = "baseline"
+	BpfProfileBaseline = "baseline"
 
 	// BpfProfileRestricted is deny some privileged operations
 	BpfProfileRestricted = "restricted"
 
+	ExecSnoopNone     = "none"
 	ExecSnoopByFilter = "filter"
 	ExecSnoopAll      = "all"
 )

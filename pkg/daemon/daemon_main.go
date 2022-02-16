@@ -194,7 +194,7 @@ func initializeFlags() {
 	flags.String(option.FilelessLockProfile, "", "filelesslock bpf security profile to restrict fileless binary execution")
 	option.BindEnv(option.FilelessLockProfile)
 
-	flags.String(option.ExecSnoopTarget, "none", "Run execsnoop to trace process execution")
+	flags.String(option.ExecSnoopTarget, defaults.ExecSnoopNone, "Run execsnoop to trace process execution")
 	option.BindEnv(option.ExecSnoopTarget)
 
 	viper.BindPFlags(flags)

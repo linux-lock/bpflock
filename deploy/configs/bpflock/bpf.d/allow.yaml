@@ -4,6 +4,11 @@ bpfmetadata:
   name: bpflock
 bpfspec:
   programs:
+    - name: execsnoop
+      description: "Trace process exec()"
+      doc: https://github.com/linux-lock/bpflock/blob/main/docs/system-and-application-tracing.md#trace-application-execution
+      args:
+        - --exec-snoop=none
     - name: kimglock
       description: "Restrict both direct and indirect modification to a running kernel image" 
       doc: https://github.com/linux-lock/bpflock/blob/main/docs/memory-protections.md#1-kernel-image-lock-down

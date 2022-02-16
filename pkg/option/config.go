@@ -228,17 +228,15 @@ type DaemonConfig struct {
 	DebugVerbose []string
 	LogDriver    []string
 	LogOpt       map[string]string
-	// Logstash     bool
-	SocketPath string
+	SocketPath   string
+
+	BpfMeta *models.BpfMeta
 
 	Version string
-	// PrometheusServeAddr string
-
-	ExecSnoopTarget string
-	BpfMeta         *models.BpfMeta
 }
 
 var (
+	// This will be the final Config.BpfMeta
 	BpfM = models.BpfMeta{
 		Bpfmetaver: "v1",
 		Kind:       "bpf",
@@ -252,26 +250,33 @@ var (
 
 	BpflockBpfProgs = map[string]models.BpfProgram{
 		// For now lets keep bpf programs sorted here
-		components.FilelessLock: {
-			Name:        "filelesslock",
+		components.ExecSnoop: {
+			Name: components.ExecSnoop,
+			// Embedded Bpf Program
+			Command:     components.BpflockAgentName,
 			Priority:    1,
-			Description: "Restrict fileless binary execution",
+			Description: components.BpfProgDescriptions[components.ExecSnoop],
+		},
+		components.FilelessLock: {
+			Name:        components.FilelessLock,
+			Priority:    30,
+			Description: components.BpfProgDescriptions[components.FilelessLock],
 		},
 		// kernel features restrictions priority starts from 50
 		components.KimgLock: {
-			Name:        "kimglock",
+			Name:        components.KimgLock,
 			Priority:    50,
-			Description: "Restrict both direct and indirect modification to a running kernel image",
+			Description: components.BpfProgDescriptions[components.KimgLock],
 		},
 		components.KmodLock: {
-			Name:        "kmodlock",
+			Name:        components.KmodLock,
 			Priority:    60,
-			Description: "Restrict kernel module operations on modular kernels",
+			Description: components.BpfProgDescriptions[components.KmodLock],
 		},
 		components.BpfRestrict: {
-			Name:        "bpfrestrict",
-			Priority:    90,
-			Description: "Restrict access to the bpf() system call",
+			Name:        components.BpfRestrict,
+			Priority:    99,
+			Description: components.BpfProgDescriptions[components.BpfRestrict],
 		},
 	}
 
@@ -320,7 +325,11 @@ func isBpfProfileValid(profile string) error {
 		return fmt.Errorf("profile not set")
 	}
 	switch profile {
-	case "allow", "none", "privileged", "baseline", "restricted":
+	case defaults.BpfProfileAllow,
+		defaults.BpfProfileNone,
+		defaults.BpfProfilePrivileged,
+		defaults.BpfProfileBaseline,
+		defaults.BpfProfileRestricted:
 		return nil
 	}
 	return fmt.Errorf("profile '%s' not supported", profile)
@@ -334,18 +343,15 @@ func (c *DaemonConfig) areBpfProgramsOk() error {
 
 	spec := bpfMeta.Bpfspec
 	for _, p := range spec.Programs {
-		profile := ""
 		for _, n := range p.Args {
 			if strings.HasPrefix(n, "--profile") {
 				arg := strings.Split(n, "=")
-				profile = arg[1]
+				profile := arg[1]
+				if err := isBpfProfileValid(profile); err != nil {
+					return fmt.Errorf("BpfMeta invalid program '%s': %v", p.Name, err)
+				}
 				break
 			}
-		}
-
-		err := isBpfProfileValid(profile)
-		if err != nil {
-			return fmt.Errorf("BpfMeta invalid program '%s': %v", p.Name, err)
 		}
 	}
 
@@ -363,29 +369,15 @@ func (c *DaemonConfig) isBpfMetaOk() error {
 	}
 
 	if bpfMeta.Bpfmetadata.Name != components.BpflockAgentName {
-		return fmt.Errorf("metadata name launcher not valid")
+		return fmt.Errorf("metadata name loader not valid")
 	}
 
 	return c.areBpfProgramsOk()
 }
 
-func (c *DaemonConfig) isExecSnoopConfOk() error {
-	switch c.ExecSnoopTarget {
-	case defaults.ExecSnoopAll, defaults.ExecSnoopByFilter, "none", "":
-		return nil
-	}
-
-	return fmt.Errorf("invalid '%q' value", ExecSnoopTarget)
-}
-
 // Validate validates the daemon configuration
 func (c *DaemonConfig) Validate() error {
-	err := c.isExecSnoopConfOk()
-	if err != nil {
-		return fmt.Errorf("validate configuration: %v", err)
-	}
-
-	err = c.isBpfMetaOk()
+	err := c.isBpfMetaOk()
 	if err != nil {
 		return fmt.Errorf("validate configuration: failed BpfMeta: %v", err)
 	}
@@ -393,7 +385,7 @@ func (c *DaemonConfig) Validate() error {
 	return nil
 }
 
-// validateBpfConfig checks whether the configuration of bpf programs is valid
+// validateBpfMeta checks whether the configuration of bpf programs is valid
 // and stores passed programs into storeProgs
 func validateBpfMeta(bpfMeta *models.BpfMeta, storeProgs *[]*models.BpfProgram) error {
 	if bpfMeta == nil || storeProgs == nil {
@@ -410,7 +402,7 @@ func validateBpfMeta(bpfMeta *models.BpfMeta, storeProgs *[]*models.BpfProgram) 
 
 	// Check nil first
 	if bpfMeta.Bpfmetadata == nil || bpfMeta.Bpfmetadata.Name != components.BpflockAgentName {
-		return fmt.Errorf("bpfmetadata name launcher not valid")
+		return fmt.Errorf("bpfmetadata name not valid")
 	}
 
 	spec := *bpfMeta.Bpfspec
@@ -462,9 +454,13 @@ func populateBpfMetaProgs(dst *models.BpfMeta, passedprogs []*models.BpfProgram)
 			return fmt.Errorf("unable to validate program '%s' not supported", p.Name)
 		}
 
+		command := p.Command
+		if components.IsBpfProgInternal(p.Name) == true {
+			command = components.BpflockAgentName
+		}
 		prog := &models.BpfProgram{
 			Name:        p.Name,
-			Command:     p.Command,
+			Command:     command,
 			Description: pbpf.Description,
 			Priority:    pbpf.Priority,
 			Args:        p.Args,
@@ -623,10 +619,15 @@ func (c *DaemonConfig) Populate() {
 	c.EnableIPv4 = viper.GetBool(EnableIPv4Name)
 	c.EnableIPv6 = viper.GetBool(EnableIPv6Name)
 	c.RmBpfOnExit = viper.GetBool(RmBpfOnExit)
-	c.ExecSnoopTarget = viper.GetString(ExecSnoopTarget)
+
+	execSnoopArgs := ""
+	value := viper.GetString(ExecSnoopTarget)
+	if value != "" {
+		execSnoopArgs = fmt.Sprintf("--%s=%s", ExecSnoopTarget, value)
+	}
 
 	bpfrargs := ""
-	value := viper.GetString(BpfRestrictProfile)
+	value = viper.GetString(BpfRestrictProfile)
 	if value != "" {
 		bpfrargs = fmt.Sprintf("--profile=%s", value)
 		value = viper.GetString(BpfRestrictBlock)
@@ -663,6 +664,10 @@ func (c *DaemonConfig) Populate() {
 
 	for _, p := range BpfM.Bpfspec.Programs {
 		switch p.Name {
+		case components.ExecSnoop:
+			if execSnoopArgs != "" {
+				p.Args = strings.Fields(execSnoopArgs)
+			}
 		case components.KimgLock:
 			if kimgrargs != "" {
 				p.Args = strings.Fields(kimgrargs)
