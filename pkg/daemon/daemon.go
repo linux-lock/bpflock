@@ -108,6 +108,7 @@ func NewDaemon(ctx context.Context, cancel context.CancelFunc) (*Daemon, error) 
 		})
 	}
 
+	// Always destroy embedded Programs
 	cleaner.cleanupFuncs.Add(func() {
 		bpf.DestroyEmbeddedProgs()
 	})
