@@ -108,8 +108,8 @@ func bpftoolGetProgID(progName string) (string, error) {
 	// Scrap the prog_id out of the bpftool output after libbpf is dual licensed
 	// we will use programatic API.
 	s := strings.Fields(string(output))
-	if s[0] == "" {
-		return "", fmt.Errorf("Failed to find prog %s: %s", progName, err)
+	if len(s) == 0 {
+		return "", fmt.Errorf("Failed to find prog %s: empty bpftool output", progName)
 	}
 	progID := strings.Split(s[0], ":")
 	return progID[0], nil
