@@ -49,11 +49,19 @@ var (
 )
 
 func UnpinMaps(rootpath string, maps ...string) error {
+	var errs []string
 	for _, m := range maps {
 		pinnedMap := filepath.Join(rootpath, m)
 
 		log.Infof("Cleaning remove bpf-map=%s", pinnedMap)
-		os.RemoveAll(pinnedMap)
+		if err := os.RemoveAll(pinnedMap); err != nil {
+			log.WithError(err).Warnf("Failed to remove bpf-map=%s", pinnedMap)
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to unpin maps: %s", strings.Join(errs, "; "))
 	}
 
 	return nil
