@@ -49,11 +49,19 @@ var (
 )
 
 func UnpinMaps(rootpath string, maps ...string) error {
+	var errs []string
 	for _, m := range maps {
 		pinnedMap := filepath.Join(rootpath, m)
 
 		log.Infof("Cleaning remove bpf-map=%s", pinnedMap)
-		os.RemoveAll(pinnedMap)
+		if err := os.RemoveAll(pinnedMap); err != nil {
+			log.WithError(err).Warnf("Failed to remove bpf-map=%s", pinnedMap)
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to unpin maps: %s", strings.Join(errs, "; "))
 	}
 
 	return nil
@@ -62,16 +70,31 @@ func UnpinMaps(rootpath string, maps ...string) error {
 // FixBpfFilesPermissions changes pinned map permissions to 0600
 // os.FileMode(0600)
 func FixBpfFilesPermissions(dir string, mode os.FileMode, files ...string) error {
+	regexes := make([]*regexp.Regexp, 0, len(files))
+	for _, pattern := range files {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf("invalid file pattern %q: %w", pattern, err)
+		}
+		regexes = append(regexes, re)
+	}
+
 	fileList := []string{}
 	err := filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
-		for _, pattern := range files {
-			if regexp.MustCompile(pattern).MatchString(f.Name()) {
+		if err != nil {
+			return err
+		}
+		for _, re := range regexes {
+			if re.MatchString(f.Name()) {
 				fileList = append(fileList, path)
 				break
 			}
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	for _, fileToChange := range fileList {
 		if err := os.Chmod(fileToChange, mode); err != nil {
@@ -80,7 +103,7 @@ func FixBpfFilesPermissions(dir string, mode os.FileMode, files ...string) error
 		log.Debugf("Changed permission of '%s'", fileToChange)
 	}
 
-	return err
+	return nil
 }
 
 // #rm -fr /sys/fs/bpf/bpflock/$pinnedProg
@@ -108,8 +131,8 @@ func bpftoolGetProgID(progName string) (string, error) {
 	// Scrap the prog_id out of the bpftool output after libbpf is dual licensed
 	// we will use programatic API.
 	s := strings.Fields(string(output))
-	if s[0] == "" {
-		return "", fmt.Errorf("Failed to find prog %s: %s", progName, err)
+	if len(s) == 0 {
+		return "", fmt.Errorf("Failed to find prog %s: empty bpftool output", progName)
 	}
 	progID := strings.Split(s[0], ":")
 	return progID[0], nil
