@@ -62,16 +62,31 @@ func UnpinMaps(rootpath string, maps ...string) error {
 // FixBpfFilesPermissions changes pinned map permissions to 0600
 // os.FileMode(0600)
 func FixBpfFilesPermissions(dir string, mode os.FileMode, files ...string) error {
+	regexes := make([]*regexp.Regexp, 0, len(files))
+	for _, pattern := range files {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf("invalid file pattern %q: %w", pattern, err)
+		}
+		regexes = append(regexes, re)
+	}
+
 	fileList := []string{}
 	err := filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
-		for _, pattern := range files {
-			if regexp.MustCompile(pattern).MatchString(f.Name()) {
+		if err != nil {
+			return err
+		}
+		for _, re := range regexes {
+			if re.MatchString(f.Name()) {
 				fileList = append(fileList, path)
 				break
 			}
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	for _, fileToChange := range fileList {
 		if err := os.Chmod(fileToChange, mode); err != nil {
@@ -80,7 +95,7 @@ func FixBpfFilesPermissions(dir string, mode os.FileMode, files ...string) error
 		log.Debugf("Changed permission of '%s'", fileToChange)
 	}
 
-	return err
+	return nil
 }
 
 // #rm -fr /sys/fs/bpf/bpflock/$pinnedProg
